@@ -1,0 +1,280 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ─── Variáveis de tema ──────────────────────────────────────────────────────── */
+
+@layer base {
+  :root,
+  html.dark {
+    --surface: 240 5% 6%;
+    --surface-raised: 240 5% 9%;
+    --surface-overlay: 240 5% 15%;
+    --border: 240 5% 25%;
+    --gold: 38 57% 50%;
+    --gold-subtle: 38 57% 50% / 0.15;
+
+    --color-bg:             #0f0f10;
+    --color-sidebar:        #0f0f10;
+    --color-card:           #18181b;
+    --color-card-border:    #27272a;
+    --color-topbar:         rgba(15,15,16,0.85);
+    --color-topbar-border:  #27272a;
+    --color-input-bg:       #18181b;
+    --color-input-border:   #3f3f46;
+    --color-hover:          rgba(255,255,255,0.05);
+    --color-divider:        #27272a;
+    --color-text-primary:   #f4f4f5;
+    --color-text-secondary: #a1a1aa;
+    --color-text-muted:     #52525b;
+    --shadow-card:          0 4px 24px rgba(0,0,0,0.40);
+    --shadow-card-hover:    0 8px 40px rgba(0,0,0,0.60);
+  }
+
+  html.light {
+    --surface: 36 33% 96%;
+    --surface-raised: 0 0% 100%;
+    --surface-overlay: 36 20% 92%;
+    --border: 30 14% 82%;
+    --gold: 38 57% 42%;
+    --gold-subtle: 38 57% 42% / 0.12;
+
+    --color-bg:             #f5f2ee;
+    --color-sidebar:        #ffffff;
+    --color-card:           #ffffff;
+    --color-card-border:    #e5dfd7;
+    --color-topbar:         rgba(255,255,255,0.92);
+    --color-topbar-border:  #e5dfd7;
+    --color-input-bg:       #f5f2ee;
+    --color-input-border:   #d4cdc4;
+    --color-hover:          rgba(0,0,0,0.04);
+    --color-divider:        #e5dfd7;
+    --color-text-primary:   #1c1917;
+    --color-text-secondary: #57534e;
+    --color-text-muted:     #a8a29e;
+    --shadow-card:          0 1px 3px rgba(0,0,0,0.06), 0 4px 12px rgba(0,0,0,0.04);
+    --shadow-card-hover:    0 2px 8px rgba(0,0,0,0.08), 0 8px 28px rgba(0,0,0,0.07);
+  }
+
+  * { box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
+
+  body {
+    background-color: var(--color-bg);
+    color: var(--color-text-primary);
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  ::-webkit-scrollbar { width: 6px; height: 6px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background-color: var(--color-divider); border-radius: 9999px; }
+
+  *:focus-visible {
+    @apply outline-none ring-2 ring-gold-500 ring-offset-2;
+  }
+}
+
+/* ─────────────────────────────────────────────────────────────────────────────
+   OVERRIDES MODO CLARO
+   Garante que TUDO mude para o tema claro, incluindo classes hardcoded
+   do body e de qualquer componente que use bg-obsidian-*.
+   ───────────────────────────────────────────────────────────────────────────── */
+
+/* ── Body e bg-surface (raiz do problema) ── */
+html.light body,
+html.light .bg-surface {
+  background-color: #f5f2ee !important;
+  color: #1c1917 !important;
+}
+
+/* ── Backgrounds ── */
+html.light .bg-obsidian-950 { background-color: #f5f2ee !important; }
+html.light .bg-obsidian-900 { background-color: #ffffff !important; }
+html.light .bg-obsidian-800 { background-color: #f0ebe3 !important; }
+html.light .bg-obsidian-700 { background-color: #e5dfd7 !important; }
+html.light .bg-obsidian-600 { background-color: #d4cdc4 !important; }
+html.light .bg-obsidian-500 { background-color: #c4bdb4 !important; }
+
+html.light .bg-obsidian-900\/50  { background-color: rgba(255,255,255,0.5) !important; }
+html.light .bg-obsidian-900\/70  { background-color: rgba(255,255,255,0.7) !important; }
+html.light .bg-obsidian-900\/80  { background-color: rgba(255,255,255,0.8) !important; }
+html.light .bg-obsidian-900\/90  { background-color: rgba(255,255,255,0.92) !important; }
+html.light .bg-obsidian-800\/50  { background-color: rgba(240,235,227,0.5) !important; }
+html.light .bg-obsidian-800\/30  { background-color: rgba(240,235,227,0.3) !important; }
+html.light .bg-obsidian-700\/50  { background-color: rgba(229,223,215,0.5) !important; }
+html.light .bg-obsidian-700\/30  { background-color: rgba(229,223,215,0.3) !important; }
+
+/* ── Hover backgrounds ── */
+html.light .hover\:bg-obsidian-950:hover   { background-color: #ede8e1 !important; }
+html.light .hover\:bg-obsidian-900:hover   { background-color: #f5f2ee !important; }
+html.light .hover\:bg-obsidian-800:hover   { background-color: #f0ebe3 !important; }
+html.light .hover\:bg-obsidian-700:hover   { background-color: #e5dfd7 !important; }
+html.light .hover\:bg-obsidian-800\/50:hover { background-color: rgba(240,235,227,0.5) !important; }
+
+/* ── Textos ── */
+html.light .text-obsidian-50  { color: #1c1917 !important; }
+html.light .text-obsidian-100 { color: #1c1917 !important; }
+html.light .text-obsidian-200 { color: #292524 !important; }
+html.light .text-obsidian-300 { color: #44403c !important; }
+html.light .text-obsidian-400 { color: #57534e !important; }
+html.light .text-obsidian-500 { color: #78716c !important; }
+html.light .text-obsidian-600 { color: #a8a29e !important; }
+html.light .text-obsidian-700 { color: #c4bdb4 !important; }
+
+/* ── Hover textos ── */
+html.light .hover\:text-obsidian-50:hover  { color: #0c0a09 !important; }
+html.light .hover\:text-obsidian-100:hover { color: #1c1917 !important; }
+html.light .hover\:text-obsidian-300:hover { color: #44403c !important; }
+
+/* ── Bordas ── */
+html.light .border-obsidian-900 { border-color: #f0ebe3 !important; }
+html.light .border-obsidian-800 { border-color: #ede8e1 !important; }
+html.light .border-obsidian-700 { border-color: #e5dfd7 !important; }
+html.light .border-obsidian-600 { border-color: #d4cdc4 !important; }
+html.light .border-obsidian-500 { border-color: #c4bdb4 !important; }
+
+html.light .hover\:border-obsidian-700:hover { border-color: #e5dfd7 !important; }
+html.light .hover\:border-obsidian-600:hover { border-color: #d4cdc4 !important; }
+html.light .hover\:border-obsidian-500:hover { border-color: #c4bdb4 !important; }
+
+/* ── Divide ── */
+html.light .divide-obsidian-800 > * + * { border-color: #e5dfd7 !important; }
+html.light .divide-obsidian-700 > * + * { border-color: #ede8e1 !important; }
+
+/* ─── Components ─────────────────────────────────────────────────────────────── */
+
+@layer components {
+  .btn {
+    @apply inline-flex items-center justify-center gap-2 rounded-xl px-5 py-2.5 text-sm font-medium transition-all duration-200 focus-visible:ring-2 disabled:pointer-events-none disabled:opacity-50;
+  }
+
+  .btn-primary {
+    @apply btn bg-gold-500 text-obsidian-950 hover:bg-gold-400 active:scale-[0.98];
+  }
+
+  .btn-ghost {
+    @apply btn active:scale-[0.98];
+    color: var(--color-text-secondary);
+  }
+  .btn-ghost:hover {
+    background-color: var(--color-hover);
+    color: var(--color-text-primary);
+  }
+
+  .btn-outline {
+    @apply btn active:scale-[0.98];
+    color: var(--color-text-secondary);
+    border: 1px solid var(--color-card-border);
+  }
+  .btn-outline:hover {
+    color: var(--color-text-primary);
+    border-color: var(--color-input-border);
+  }
+
+  .input {
+    @apply w-full rounded-xl px-4 py-3 text-sm transition-all duration-200 focus:outline-none;
+    background-color: var(--color-input-bg);
+    border: 1px solid var(--color-input-border);
+    color: var(--color-text-primary);
+  }
+  .input::placeholder { color: var(--color-text-muted); }
+  .input:focus {
+    border-color: rgba(180,130,40,0.5);
+    background-color: var(--color-card);
+  }
+  .input:disabled { opacity: 0.5; cursor: not-allowed; }
+
+  .card {
+    @apply rounded-2xl;
+    background-color: var(--color-card);
+    border: 1px solid var(--color-card-border);
+    box-shadow: var(--shadow-card);
+  }
+
+  .card-hover {
+    @apply card transition-all duration-300;
+  }
+  .card-hover:hover {
+    border-color: var(--color-input-border);
+    box-shadow: var(--shadow-card-hover);
+  }
+
+  .skeleton {
+    @apply animate-shimmer rounded-xl bg-[length:200%_100%];
+    background-image: linear-gradient(
+      90deg,
+      var(--color-hover) 0%,
+      var(--color-divider) 50%,
+      var(--color-hover) 100%
+    );
+  }
+
+  .photo-grid { columns: 2; column-gap: 0.75rem; }
+  @screen sm  { .photo-grid { columns: 3; } }
+  @screen lg  { .photo-grid { columns: 4; } }
+  @screen xl  { .photo-grid { columns: 5; } }
+
+  .photo-grid-item {
+    @apply break-inside-avoid mb-3 overflow-hidden rounded-xl;
+  }
+
+  .glass {
+    backdrop-filter: blur(16px);
+    background-color: var(--color-topbar);
+    border: 1px solid var(--color-topbar-border);
+  }
+
+  .gold-divider {
+    @apply h-px w-12 bg-gold-500;
+  }
+}
+
+/* ─── Utilities ──────────────────────────────────────────────────────────────── */
+
+@layer utilities {
+  .text-gradient-gold {
+    @apply bg-gradient-to-r from-gold-400 to-gold-600 bg-clip-text text-transparent;
+  }
+
+  .no-scrollbar::-webkit-scrollbar { display: none; }
+  .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+
+  .transition-base { @apply transition-all duration-200 ease-in-out; }
+
+  .noise-overlay { position: relative; }
+  .noise-overlay::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.03'/%3E%3C/svg%3E");
+    pointer-events: none;
+    border-radius: inherit;
+  }
+}
+
+/* ─── Animações ──────────────────────────────────────────────────────────────── */
+
+@keyframes slideInFromLeft {
+  from { opacity: 0; transform: translateX(-24px); }
+  to   { opacity: 1; transform: translateX(0); }
+}
+@keyframes slideInFromRight {
+  from { opacity: 0; transform: translateX(24px); }
+  to   { opacity: 1; transform: translateX(0); }
+}
+@keyframes scaleIn {
+  from { opacity: 0; transform: scale(0.94); }
+  to   { opacity: 1; transform: scale(1); }
+}
+
+.animate-slide-left  { animation: slideInFromLeft  0.4s ease forwards; }
+.animate-slide-right { animation: slideInFromRight 0.4s ease forwards; }
+.animate-scale-in    { animation: scaleIn          0.3s ease forwards; }
+
+.stagger > *:nth-child(1) { animation-delay: 0ms; }
+.stagger > *:nth-child(2) { animation-delay: 60ms; }
+.stagger > *:nth-child(3) { animation-delay: 120ms; }
+.stagger > *:nth-child(4) { animation-delay: 180ms; }
+.stagger > *:nth-child(5) { animation-delay: 240ms; }
+.stagger > *:nth-child(6) { animation-delay: 300ms; }

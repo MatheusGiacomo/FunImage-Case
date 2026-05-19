@@ -1,0 +1,23 @@
+[tool.ruff]
+target-version = "py312"
+line-length = 100
+select = ["E", "W", "F", "I", "N", "UP", "B", "C4", "SIM"]
+ignore = [
+    "E501",   # line-too-long (handled by black)
+    "B008",   # function-call-in-default-argument
+    "N806",   # variable-in-function-should-be-lowercase (Django conventions)
+]
+exclude = ["migrations", ".git", "__pycache__", "staticfiles"]
+
+[tool.black]
+line-length = 100
+target-version = ["py312"]
+extend-exclude = "migrations"
+
+[tool.isort]
+profile = "black"
+line_length = 100
+skip = ["migrations"]
+known_django = ["django", "rest_framework", "drf_spectacular"]
+known_first_party = ["apps", "config"]
+sections = ["FUTURE", "STDLIB", "THIRDPARTY", "DJANGO", "FIRSTPARTY", "LOCALFOLDER"]

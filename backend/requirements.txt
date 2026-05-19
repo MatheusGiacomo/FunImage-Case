@@ -1,0 +1,65 @@
+# Django Core
+Django==5.1.4
+djangorestframework==3.15.2
+django-cors-headers==4.4.0
+django-filter==24.3
+django-extensions==3.2.3
+
+# Auth
+djangorestframework-simplejwt==5.3.1
+PyJWT==2.9.0
+
+# Database
+psycopg[binary]==3.2.3          # PostgreSQL (psycopg3)
+pymongo==4.9.2                  # MongoDB native driver
+motor==3.6.0                    # Async MongoDB driver
+redis==5.2.0                    # Redis client
+django-redis==5.4.0             # Redis cache backend
+
+# Celery (task queue)
+celery==5.4.0
+celery[redis]==5.4.0
+django-celery-beat==2.7.0       # Periodic tasks via DB
+django-celery-results==2.5.1    # Store task results in DB
+flower==2.0.1                   # Celery monitoring UI
+
+# Storage (S3 / MinIO)
+boto3==1.35.71
+django-storages[s3]==1.14.4
+Pillow==11.0.0                  # Image processing & watermark
+
+# API Docs
+drf-spectacular==0.27.2         # OpenAPI 3 / Swagger
+
+# Validation & Utils
+pydantic==2.10.3                # Internal data validation
+python-magic==0.4.27            # MIME type detection
+python-dotenv==1.0.1
+shortuuid==1.0.13               # Short readable UUIDs
+itsdangerous==2.2.0             # Signed tokens (download URLs)
+python-dateutil==2.9.0
+
+# Performance
+gunicorn==23.0.0
+uvicorn[standard]==0.32.1
+whitenoise==6.8.2
+
+# Observability
+sentry-sdk[django]==2.19.0
+django-prometheus==2.3.1
+
+# Security
+django-ratelimit==4.1.0
+cryptography==43.0.3
+
+# Testing
+pytest==8.3.4
+pytest-django==4.9.0
+pytest-asyncio==0.24.0
+factory-boy==3.3.1
+faker==33.1.0
+pytest-cov==6.0.0
+freezegun==1.5.1
+moto[s3]==5.0.22                # Mock AWS S3
+
+drf-nested-routers==0.94.1
