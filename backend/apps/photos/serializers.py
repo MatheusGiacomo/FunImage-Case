@@ -101,7 +101,6 @@ class PhotoUploadSerializer(serializers.Serializer):
     gallery_id = serializers.UUIDField()
 
     def validate_photo(self, file):
-        from django.conf import settings
         from apps.core.exceptions import FileTooLargeException, InvalidMimeTypeException
         import magic
 
@@ -146,4 +145,3 @@ class SignedDownloadSerializer(serializers.Serializer):
 
 class FavoriteToggleSerializer(serializers.Serializer):
     is_favorited = serializers.BooleanField()
-    

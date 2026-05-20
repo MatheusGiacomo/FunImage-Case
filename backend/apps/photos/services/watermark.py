@@ -15,7 +15,7 @@ import logging
 from pathlib import Path
 from typing import Literal
 
-from PIL import Image, ImageDraw, ImageFont, ImageFilter, ExifTags
+from PIL import Image, ImageDraw, ImageFont, ExifTags
 from django.conf import settings
 
 logger = logging.getLogger(__name__)

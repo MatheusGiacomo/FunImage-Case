@@ -1,6 +1,4 @@
 # scripts/seed_dev.py
-import os
-import django
 
 # Se você rodar via shell do manage.py, o django.setup() já foi feito.
 # Mas garantimos a importação do modelo de usuário correto.
@@ -14,7 +12,7 @@ def run_seed():
     # --- 1. CRIAR ADMIN DEMO ---
     admin_email = 'admin@fotopro.com'
     admin_pass = 'admin1234'
-    
+
     if not User.objects.filter(email=admin_email).exists():
         User.objects.create_superuser(
             email=admin_email,
@@ -43,4 +41,3 @@ if __name__ == "__main__":
     run_seed()
 else:
     run_seed()
-    

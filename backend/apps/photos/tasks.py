@@ -11,11 +11,9 @@ Each task is idempotent and retries on transient failures.
 """
 
 import logging
-import os
-import tempfile
 from datetime import datetime
 
-from celery import shared_task, chain
+from celery import shared_task
 from django.conf import settings
 from django.db import transaction
 
@@ -63,7 +61,6 @@ def process_watermark(self, photo_id: str) -> str:
         if settings.USE_S3:
             from apps.photos.services.storage import S3StorageService
             s3 = S3StorageService()
-            import boto3
             response = s3._client.get_object(Bucket=s3._bucket, Key=photo.original_file)
             original_bytes = response["Body"].read()
         else:

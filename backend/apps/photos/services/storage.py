@@ -6,13 +6,10 @@ All methods return public URLs or paths suitable for client consumption.
 Signed URL generation is handled here for secure download access.
 """
 
-import io
 import logging
-import os
 import uuid
 from datetime import datetime, timedelta
 from pathlib import Path
-from typing import BinaryIO
 
 import boto3
 from botocore.exceptions import ClientError
@@ -249,4 +246,3 @@ def get_photo_urls(photo) -> dict[str, str | None]:
             "watermarked_url": service.get_public_url(photo.watermarked_file) if photo.watermarked_file else None,
             "thumbnail_url": service.get_public_url(photo.thumbnail_file) if photo.thumbnail_file else None,
         }
-    

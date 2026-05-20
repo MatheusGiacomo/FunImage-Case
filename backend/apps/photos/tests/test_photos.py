@@ -136,8 +136,6 @@ class TestDownloadToken:
 
     def test_expired_token_returns_none(self):
         from freezegun import freeze_time
-        from django.utils import timezone
-        import datetime
 
         with freeze_time("2026-01-01 12:00:00"):
             token_data = generate_download_token("photo-abc", "user-xyz")

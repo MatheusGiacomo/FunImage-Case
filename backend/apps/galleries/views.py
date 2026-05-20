@@ -6,9 +6,7 @@ Gallery CRUD — scoped by user role.
 import logging
 from pathlib import Path
 from django.conf import settings
-from django.utils.decorators import method_decorator
-from django.views.decorators.cache import cache_page
-from rest_framework import status, filters
+from rest_framework import filters
 from rest_framework.decorators import action
 from rest_framework.permissions import IsAuthenticated, AllowAny
 from rest_framework.response import Response
@@ -18,14 +16,13 @@ from drf_spectacular.utils import extend_schema, extend_schema_view
 
 # REMOVIDO: from apps.photos.views import PhotoViewSet (Causava o erro circular)
 
-from apps.core.permissions import IsAdmin, IsGalleryOwnerOrAdmin
+from apps.core.permissions import IsGalleryOwnerOrAdmin
 from apps.core.exceptions import ResourceNotFoundException
 from .models import Gallery
 from .serializers import (
     GallerySerializer,
     GalleryListSerializer,
     GalleryCreateSerializer,
-    GalleryShareSerializer,
 )
 
 logger = logging.getLogger(__name__)

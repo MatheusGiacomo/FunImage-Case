@@ -3,9 +3,7 @@ conftest.py
 Global pytest fixtures and configuration.
 """
 
-import django
 import pytest
-from django.conf import settings
 
 
 def pytest_configure(config):

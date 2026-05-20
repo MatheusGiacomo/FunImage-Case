@@ -4,23 +4,20 @@ Photo endpoints — upload pipeline, secure download, favorites.
 """
 
 import logging
-import uuid
 from django.conf import settings
 from django.db import transaction
-from django.utils.decorators import method_decorator
-from django.views.decorators.cache import cache_page
 from rest_framework import status, filters
 from rest_framework.decorators import action
-from rest_framework.parsers import MultiPartParser, FormParser, JSONParser
+from rest_framework.parsers import MultiPartParser, FormParser
 from rest_framework.permissions import IsAuthenticated, AllowAny
 from rest_framework.response import Response
-from rest_framework.viewsets import ModelViewSet, ViewSet
+from rest_framework.viewsets import ModelViewSet
 from rest_framework.views import APIView
 from django.db.models import Exists, OuterRef
 from django_filters.rest_framework import DjangoFilterBackend
 from drf_spectacular.utils import extend_schema, OpenApiParameter
 
-from apps.core.permissions import IsAdmin, IsGalleryOwnerOrAdmin, IsOwnerOrAdmin
+from apps.core.permissions import IsAdmin
 from apps.core.exceptions import (
     ResourceNotFoundException,
     PaymentRequiredException,

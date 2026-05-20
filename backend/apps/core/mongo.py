@@ -1,6 +1,5 @@
 import logging
 from functools import lru_cache
-from typing import Optional
 
 import pymongo
 # IMPORTANTE: No PyMongo 4+, você deve importar as classes diretamente para usá-las como Type Hints

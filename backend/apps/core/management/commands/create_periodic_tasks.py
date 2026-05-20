@@ -11,7 +11,7 @@ class Command(BaseCommand):
     help = "Creates or updates Celery Beat periodic task schedules."
 
     def handle(self, *args, **options):
-        from django_celery_beat.models import PeriodicTask, IntervalSchedule, CrontabSchedule
+        from django_celery_beat.models import PeriodicTask, IntervalSchedule
         import json
 
         self.stdout.write("Registering periodic tasks...")

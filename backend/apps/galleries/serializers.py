@@ -3,7 +3,6 @@ apps/galleries/serializers.py
 """
 
 from rest_framework import serializers
-from django.conf import settings
 
 from apps.users.serializers import UserSerializer
 from .models import Gallery
@@ -135,4 +134,3 @@ class GalleryShareSerializer(serializers.Serializer):
     share_url = serializers.CharField()
     share_token = serializers.CharField()
     expires_at = serializers.DateTimeField(allow_null=True)
-    

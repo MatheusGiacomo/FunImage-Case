@@ -10,7 +10,7 @@ from typing import Any
 
 from PIL import Image, ExifTags
 # ALTERADO: Importa TiffImagePlugin para acessar o tipo IFDRational de forma segura
-from PIL.TiffImagePlugin import IFDRational 
+from PIL.TiffImagePlugin import IFDRational
 
 from apps.core.mongo import get_photo_metadata_collection
 
@@ -44,7 +44,7 @@ def _convert_value(value: Any) -> Any:
             return float(value) if value.denominator != 0 else None
         except Exception:
             return None
-    
+
     # Tratamento para frações do Pillow (comum em ExposureTime)
     if hasattr(value, 'numerator') and hasattr(value, 'denominator'):
         return float(value.numerator) / float(value.denominator) if value.denominator != 0 else None

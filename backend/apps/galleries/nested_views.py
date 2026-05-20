@@ -6,4 +6,3 @@ class GalleryPhotoViewSet(PhotoViewSet):
     def get_queryset(self):
         gallery_pk = self.kwargs.get('gallery_pk')
         return super().get_queryset().filter(gallery_id=gallery_pk)
-    
