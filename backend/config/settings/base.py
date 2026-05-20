@@ -275,6 +275,20 @@ ACCEPTED_IMAGE_TYPES = {"image/jpeg", "image/png", "image/webp"}
 MAX_UPLOAD_SIZE_MB = int(os.environ.get("MAX_UPLOAD_SIZE_MB", "50"))
 MAX_UPLOAD_SIZE_BYTES = MAX_UPLOAD_SIZE_MB * 1024 * 1024
 
+# ─── Purchase / Download unlock ───────────────────────────────────────────────
+# Static access code used to unlock photo/album downloads.
+# Override via PURCHASE_ACCESS_CODE env var in production.
+PURCHASE_ACCESS_CODE = os.environ.get("PURCHASE_ACCESS_CODE", "121212")
+
+# Public-facing MinIO/S3 endpoint used to rewrite presigned URLs so browsers
+# can resolve them. In Docker Compose the internal endpoint is http://minio:9000
+# but browsers can only reach http://localhost:9000.
+# Set MINIO_PUBLIC_URL explicitly in production (e.g. to your CDN or public S3 URL).
+MINIO_PUBLIC_URL = os.environ.get(
+    "MINIO_PUBLIC_URL",
+    os.environ.get("AWS_S3_ENDPOINT_URL", "").replace("//minio:", "//localhost:"),
+)
+
 # ─── Download Token ───────────────────────────────────────────────────────────
 
 DOWNLOAD_TOKEN_SECRET = os.environ.get("DOWNLOAD_TOKEN_SECRET", "change-me-in-production")

@@ -66,13 +66,32 @@ class S3StorageService:
         return path
 
     def get_presigned_url(self, key: str, expires_in: int = None) -> str:
-        """Generate a pre-signed GET URL valid for `expires_in` seconds."""
+        """Generate a pre-signed GET URL valid for `expires_in` seconds.
+
+        Returns the internal endpoint URL (e.g. http://minio:9000) so that
+        the Next.js image optimizer (running inside Docker) can fetch and
+        proxy the image to the browser. For direct browser downloads use
+        get_public_presigned_url() instead.
+        """
         expires_in = expires_in or settings.AWS_QUERYSTRING_EXPIRE
         url = self._client.generate_presigned_url(
             "get_object",
             Params={"Bucket": self._bucket, "Key": key},
             ExpiresIn=expires_in,
         )
+        return url
+
+    def get_public_presigned_url(self, key: str, expires_in: int = None) -> str:
+        """Like get_presigned_url but rewrites the hostname to MINIO_PUBLIC_URL.
+
+        Use this when the URL will be consumed directly by the browser (e.g.
+        download redirects), NOT when it will be proxied by Next.js optimizer.
+        """
+        url = self.get_presigned_url(key, expires_in)
+        internal = getattr(settings, "AWS_S3_ENDPOINT_URL", "")
+        public = getattr(settings, "MINIO_PUBLIC_URL", "")
+        if internal and public and internal != public:
+            url = url.replace(internal, public, 1)
         return url
 
     def delete(self, key: str) -> None:

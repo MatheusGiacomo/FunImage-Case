@@ -187,6 +187,22 @@ class PhotoViewSet(ModelViewSet):
             "expires_at": token_data["expires_at"],
         })
 
+    # ── /photos/:id/purchase/ ─────────────────────────────────────────────
+    @action(detail=True, methods=["post"], url_path="purchase")
+    def purchase(self, request, pk=None):
+        """Unlock a single photo for download using the access code."""
+        photo = self.get_object()
+        code = request.data.get("code", "").strip()
+        expected = getattr(settings, "PURCHASE_ACCESS_CODE", "121212")
+        if code != expected:
+            raise BusinessException("Código de acesso inválido.")
+        if not photo.is_purchased:
+            photo.is_purchased = True
+            photo.save(update_fields=["is_purchased"])
+            logger.info("Photo purchased: %s by %s", photo.id, request.user.id)
+        serializer = self.get_serializer(photo, context={"request": request})
+        return Response(serializer.data)
+
     # ── /photos/:id/favorite/ ─────────────────────────────────────────────
 
     @extend_schema(
@@ -434,9 +450,15 @@ class SecureDownloadView(APIView):
         urls = get_photo_urls(photo)
 
         if settings.USE_S3:
-            # For S3: redirect to presigned URL
+            # For S3: redirect to presigned URL with public hostname so the
+            # browser can resolve it (minio:9000 is only reachable inside Docker).
             from django.http import HttpResponseRedirect
-            return HttpResponseRedirect(urls["original_url"])
+            storage = get_storage_service()
+            public_url = storage.get_public_presigned_url(
+                photo.original_file,
+                expires_in=300,  # 5 min — enough for the download to start
+            )
+            return HttpResponseRedirect(public_url)
         else:
             # For local: return URL to serve via Django
             return Response({

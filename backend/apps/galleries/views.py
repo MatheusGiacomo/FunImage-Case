@@ -98,4 +98,26 @@ class GalleryViewSet(ModelViewSet):
             raise ResourceNotFoundException("Galeria não encontrada ou não está pública.")
         return Response(GallerySerializer(gallery, context={"request": request}).data)
 
+    @action(detail=True, methods=["post"], url_path="purchase")
+    def purchase(self, request, pk=None):
+        """Unlock all photos in a gallery for download using the access code."""
+        from django.conf import settings
+        from apps.core.exceptions import BusinessException
+        from apps.photos.models import Photo
+
+        gallery = self.get_object()
+        code = request.data.get("code", "").strip()
+        expected = getattr(settings, "PURCHASE_ACCESS_CODE", "121212")
+        if code != expected:
+            raise BusinessException("Código de acesso inválido.")
+
+        updated = Photo.objects.filter(
+            gallery=gallery, deleted_at__isnull=True, is_purchased=False
+        ).update(is_purchased=True)
+        logger.info(
+            "Gallery purchased: %s by %s (%d photos unlocked)",
+            gallery.id, request.user.id, updated,
+        )
+        return Response({"unlocked": updated, "gallery_id": str(gallery.id)})
+
 # A CLASSE GalleryPhotoViewSet FOI MOVIDA PARA nested_views.py

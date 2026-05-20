@@ -318,6 +318,11 @@ export const galleryApi = {
     await apiClient.delete(`/galleries/${id}/`);
   },
 
+  purchase: async (galleryId: string, code: string): Promise<{ unlocked: number }> => {
+    const { data } = await apiClient.post(`/galleries/${galleryId}/purchase/`, { code });
+    return data;
+  },
+
   getShareLink: async (id: string): Promise<{ shareUrl: string }> => {
     const { data } = await apiClient.post<{ shareUrl: string }>(
       `/galleries/${id}/share/`
@@ -384,6 +389,11 @@ export const photoApi = {
     const { data } = await apiClient.post<SignedDownloadUrl>(
       `/photos/${photoId}/download/`
     );
+    return data;
+  },
+
+  purchase: async (photoId: string, code: string): Promise<Photo> => {
+    const { data } = await apiClient.post<Photo>(`/photos/${photoId}/purchase/`, { code });
     return data;
   },
 

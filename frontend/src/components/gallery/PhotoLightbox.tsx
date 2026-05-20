@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useCallback } from 'react';
+import { useEffect, useCallback, useState } from 'react';
 import Image from 'next/image';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
@@ -13,13 +13,15 @@ import {
   Loader2,
   Lock,
   Trash2,
+  ShoppingBag,
 } from 'lucide-react';
 import { useGalleryStore } from '@/store/gallery.store';
 import { useAuthStore } from '@/store/auth.store';
 import { photoApi, downloadFile } from '@/lib/api';
 import { formatDate, formatBytes } from '@/lib/utils';
-import { useState } from 'react';
 import ConfirmDialog from '@/components/ui/ConfirmDialog';
+import PurchaseDialog from '@/components/ui/PurchaseDialog';
+import type { PurchaseTarget } from '@/components/ui/PurchaseDialog';
 import toast from 'react-hot-toast';
 import type { Photo } from '@/types';
 
@@ -44,13 +46,16 @@ export default function PhotoLightbox({
   const [isDeleting, setIsDeleting] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [isFavorited, setIsFavorited] = useState(false);
+  const [showPurchase, setShowPurchase] = useState(false);
+  const [isPurchased, setIsPurchased] = useState(false);
 
   const photo = photos[currentIndex];
 
   // Keep local state in sync when the current photo changes (navigation)
   useEffect(() => {
     setIsFavorited(photo?.isFavorited ?? false);
-  }, [photo?.id, photo?.isFavorited]);
+    setIsPurchased(photo?.isPurchased ?? false);
+  }, [photo?.id, photo?.isFavorited, photo?.isPurchased]);
 
   // Keyboard navigation
   const handleKeyDown = useCallback(
@@ -72,10 +77,8 @@ export default function PhotoLightbox({
   }, [handleKeyDown]);
 
   const handleDownload = async () => {
-    if (!photo?.isPurchased) {
-      toast.error('Adquira a foto para fazer o download');
-      return;
-    }
+    if (!photo) return;
+    if (!isPurchased) { setShowPurchase(true); return; }
     setIsDownloading(true);
     try {
       const { url, filename } = await photoApi.getDownloadUrl(photo.id);
@@ -85,6 +88,14 @@ export default function PhotoLightbox({
       toast.error('Erro ao iniciar download');
     } finally {
       setIsDownloading(false);
+    }
+  };
+
+  const handlePurchaseSuccess = () => {
+    setIsPurchased(true);
+    setShowPurchase(false);
+    if (photo) {
+      photoApi.getDownloadUrl(photo.id).then(({ url, filename }) => downloadFile(url, filename));
     }
   };
 
@@ -161,15 +172,15 @@ export default function PhotoLightbox({
 
               <ActionButton
                 onClick={handleDownload}
-                disabled={isDownloading || !photo.isPurchased}
-                title={photo.isPurchased ? 'Download' : 'Compre para baixar'}
+                disabled={isDownloading}
+                title={isPurchased ? 'Download' : 'Adquirir foto'}
               >
                 {isDownloading ? (
                   <Loader2 size={17} className="animate-spin" />
-                ) : photo.isPurchased ? (
+                ) : isPurchased ? (
                   <Download size={17} />
                 ) : (
-                  <Lock size={17} />
+                  <ShoppingBag size={17} />
                 )}
               </ActionButton>
 
@@ -360,6 +371,16 @@ export default function PhotoLightbox({
         onConfirm={confirmDelete}
         onCancel={() => setShowDeleteConfirm(false)}
       />
+
+      {/* Purchase dialog */}
+      {photo && (
+        <PurchaseDialog
+          isOpen={showPurchase}
+          target={{ type: 'photo' as const, photoId: photo.id, filename: photo.filename }}
+          onSuccess={handlePurchaseSuccess}
+          onCancel={() => setShowPurchase(false)}
+        />
+      )}
     </AnimatePresence>
   );
 }

@@ -3,7 +3,7 @@
 import { useEffect, useCallback, useRef } from 'react';
 import { useParams } from 'next/navigation';
 import { motion } from 'framer-motion';
-import { ArrowLeft, Upload, Share2, MoreHorizontal, Images } from 'lucide-react';
+import { ArrowLeft, Upload, Share2, ShoppingBag, Images } from 'lucide-react';
 import Link from 'next/link';
 import { useGalleryStore } from '@/store/gallery.store';
 import PhotoGrid from '@/components/gallery/PhotoGrid';
@@ -12,6 +12,7 @@ import UploadDropzone from '@/components/gallery/UploadDropzone';
 import { useAuthStore } from '@/store/auth.store';
 import { formatDate } from '@/lib/utils';
 import { galleryApi } from '@/lib/api';
+import PurchaseDialog, { type PurchaseTarget } from '@/components/ui/PurchaseDialog';
 import toast from 'react-hot-toast';
 import { useState } from 'react';
 
@@ -33,6 +34,7 @@ export default function GalleryPage() {
   } = useGalleryStore();
 
   const [uploadOpen, setUploadOpen] = useState(false);
+  const [showAlbumPurchase, setShowAlbumPurchase] = useState(false);
   const observerRef = useRef<IntersectionObserver | null>(null);
   const sentinelRef = useRef<HTMLDivElement | null>(null);
 
@@ -123,6 +125,16 @@ export default function GalleryPage() {
 
             {/* Actions */}
             <div className="flex items-center gap-2">
+              {/* Adquirir álbum — visible to non-admin users with photos */}
+              {user?.role !== 'admin' && photos.length > 0 && (
+                <button
+                  onClick={() => setShowAlbumPurchase(true)}
+                  className="btn-ghost gap-2 text-sm py-2 text-gold-400 hover:text-gold-300 border-gold-500/30 hover:border-gold-400/50"
+                >
+                  <ShoppingBag size={14} />
+                  <span className="hidden sm:inline">Adquirir álbum</span>
+                </button>
+              )}
               {user?.role === 'admin' && (
                 <button
                   onClick={() => setUploadOpen(true)}
@@ -189,6 +201,26 @@ export default function GalleryPage() {
             setUploadOpen(false);
             fetchPhotos(id, 1);
           }}
+        />
+      )}
+
+      {/* ── Album Purchase Dialog ── */}
+      {currentGallery && (
+        <PurchaseDialog
+          isOpen={showAlbumPurchase}
+          target={{
+            type: 'album' as const,
+            galleryId: currentGallery.id,
+            galleryName: currentGallery.name,
+            photoCount: totalPhotos,
+          }}
+          onSuccess={() => {
+            setShowAlbumPurchase(false);
+            // Refresh photos so isPurchased is updated for all
+            fetchPhotos(id, 1);
+            toast.success('Álbum adquirido! Todos os downloads estão liberados.');
+          }}
+          onCancel={() => setShowAlbumPurchase(false)}
         />
       )}
     </div>

@@ -3,13 +3,14 @@
 import { useState, useCallback, useEffect } from 'react';
 import Image from 'next/image';
 import { motion } from 'framer-motion';
-import { Heart, Download, ZoomIn, Loader2, Trash2 } from 'lucide-react';
+import { Heart, Download, ZoomIn, Loader2, Trash2, ShoppingBag } from 'lucide-react';
 import { useInView } from 'react-intersection-observer';
 import { useGalleryStore } from '@/store/gallery.store';
 import { useAuthStore } from '@/store/auth.store';
 import { photoApi, downloadFile } from '@/lib/api';
 import { cn } from '@/lib/utils';
 import ConfirmDialog from '@/components/ui/ConfirmDialog';
+import PurchaseDialog, { type PurchaseTarget } from '@/components/ui/PurchaseDialog';
 import toast from 'react-hot-toast';
 import type { Photo } from '@/types';
 
@@ -42,6 +43,8 @@ function PhotoItem({ photo, index }: { photo: Photo; index: number }) {
   const [isDownloading, setIsDownloading] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [showPurchase, setShowPurchase] = useState(false);
+  const [isPurchased, setIsPurchased] = useState(photo.isPurchased ?? false);
   const [imgLoaded, setImgLoaded] = useState(false);
   // Local optimistic state so the heart stays filled immediately on click
   // and survives re-renders while the API call is in-flight.
@@ -58,8 +61,8 @@ function PhotoItem({ photo, index }: { photo: Photo; index: number }) {
 
   const handleDownload = async (e: React.MouseEvent) => {
     e.stopPropagation();
-    if (!photo.isPurchased) {
-      toast.error('É necessário adquirir a foto para fazer o download');
+    if (!isPurchased) {
+      setShowPurchase(true);
       return;
     }
     setIsDownloading(true);
@@ -72,6 +75,13 @@ function PhotoItem({ photo, index }: { photo: Photo; index: number }) {
     } finally {
       setIsDownloading(false);
     }
+  };
+
+  const handlePurchaseSuccess = () => {
+    setIsPurchased(true);
+    setShowPurchase(false);
+    // auto-download after unlock
+    photoApi.getDownloadUrl(photo.id).then(({ url, filename }) => downloadFile(url, filename));
   };
 
   const handleFavorite = async (e: React.MouseEvent) => {
@@ -175,21 +185,24 @@ function PhotoItem({ photo, index }: { photo: Photo; index: number }) {
               />
             </button>
 
-            {/* Download */}
+            {/* Download / Adquirir */}
             <button
               onClick={handleDownload}
               disabled={isDownloading}
+              title={isPurchased ? 'Download' : 'Adquirir foto'}
               className={cn(
                 'w-8 h-8 rounded-lg flex items-center justify-center backdrop-blur-sm transition-all duration-150',
-                photo.isPurchased
+                isPurchased
                   ? 'bg-gold-500/20 text-gold-400 hover:bg-gold-500/30'
-                  : 'bg-obsidian-800/80 text-obsidian-500 cursor-not-allowed'
+                  : 'bg-obsidian-800/80 text-obsidian-400 hover:text-gold-400 hover:bg-gold-500/10'
               )}
             >
               {isDownloading ? (
                 <Loader2 size={14} className="animate-spin" />
-              ) : (
+              ) : isPurchased ? (
                 <Download size={14} />
+              ) : (
+                <ShoppingBag size={14} />
               )}
             </button>
 
@@ -238,6 +251,14 @@ function PhotoItem({ photo, index }: { photo: Photo; index: number }) {
         isLoading={isDeleting}
         onConfirm={confirmDelete}
         onCancel={() => setShowDeleteConfirm(false)}
+      />
+
+      {/* Purchase dialog */}
+      <PurchaseDialog
+        isOpen={showPurchase}
+        target={{ type: 'photo' as const, photoId: photo.id, filename: photo.filename }}
+        onSuccess={handlePurchaseSuccess}
+        onCancel={() => setShowPurchase(false)}
       />
     </motion.div>
   );
