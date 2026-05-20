@@ -1,5 +1,6 @@
 import logging
 from functools import lru_cache
+from typing import Optional
 
 import pymongo
 # IMPORTANTE: No PyMongo 4+, você deve importar as classes diretamente para usá-las como Type Hints
@@ -44,7 +45,7 @@ def get_photo_metadata_collection() -> Collection:  # Alterado para Collection
     return col
 
 
-def get_audit_log_collection() -> Collection:  # Alterado para Collection
+def get_audit_log_collection() -> Collection:
     """
     audit_log collection — immutable audit trail for sensitive operations.
     """
@@ -52,8 +53,9 @@ def get_audit_log_collection() -> Collection:  # Alterado para Collection
     col = db["audit_log"]
     col.create_index("user_id", background=True)
     col.create_index("event", background=True)
-    col.create_index("created_at", background=True)
-    # Auto-expire audit logs after 2 years (LGPD compliance)
+    # Single TTL index on created_at — doubles as a regular index AND auto-expires
+    # after 2 years (LGPD compliance). A separate non-TTL index on the same field
+    # would cause IndexOptionsConflict and silently break all audit writes.
     col.create_index(
         "created_at",
         expireAfterSeconds=63_072_000,

@@ -88,3 +88,6 @@ Thumbs.db
 
 # docker local data
 .docker/
+
+# mongo
+fix_mongo_indexes.py

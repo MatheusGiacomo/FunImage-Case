@@ -4,20 +4,23 @@ Photo endpoints — upload pipeline, secure download, favorites.
 """
 
 import logging
+import uuid
 from django.conf import settings
 from django.db import transaction
+from django.utils.decorators import method_decorator
+from django.views.decorators.cache import cache_page
 from rest_framework import status, filters
 from rest_framework.decorators import action
-from rest_framework.parsers import MultiPartParser, FormParser
+from rest_framework.parsers import MultiPartParser, FormParser, JSONParser
 from rest_framework.permissions import IsAuthenticated, AllowAny
 from rest_framework.response import Response
-from rest_framework.viewsets import ModelViewSet
+from rest_framework.viewsets import ModelViewSet, ViewSet
 from rest_framework.views import APIView
 from django.db.models import Exists, OuterRef
 from django_filters.rest_framework import DjangoFilterBackend
 from drf_spectacular.utils import extend_schema, OpenApiParameter
 
-from apps.core.permissions import IsAdmin
+from apps.core.permissions import IsAdmin, IsGalleryOwnerOrAdmin, IsOwnerOrAdmin
 from apps.core.exceptions import (
     ResourceNotFoundException,
     PaymentRequiredException,
@@ -378,6 +381,9 @@ def _process_single_upload(file, gallery: Gallery, uploader) -> Photo:
         # Synchronous fallback: apply watermark + generate thumbnail inline so the
         # photo is immediately viewable even without a running Celery worker.
         try:
+            from apps.photos.services.watermark import apply_watermark, generate_thumbnail
+            from apps.photos.services.exif import extract_exif, save_photo_metadata
+
             watermarked_bytes = apply_watermark(raw_bytes)
             thumbnail_bytes = generate_thumbnail(watermarked_bytes)
 
@@ -396,6 +402,17 @@ def _process_single_upload(file, gallery: Gallery, uploader) -> Photo:
                 status=PhotoStatus.READY,
             )
             photo.refresh_from_db()
+
+            # Save EXIF metadata to MongoDB (same as the Celery task would do)
+            try:
+                exif = extract_exif(raw_bytes)
+                save_photo_metadata(str(photo.id), exif, {
+                    "processed_sync": True,
+                    "celery_unavailable": True,
+                })
+            except Exception as exif_err:
+                logger.warning("EXIF extraction failed for photo %s: %s", photo.id, exif_err)
+
             logger.info("Synchronous processing complete for photo %s", photo.id)
         except Exception as sync_err:
             logger.error(
