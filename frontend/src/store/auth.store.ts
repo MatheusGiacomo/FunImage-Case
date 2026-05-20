@@ -25,32 +25,54 @@ const initialState = {
   isLoading: false,
 };
 
+/** Retry a function up to `maxAttempts` times on network errors (ERR_EMPTY_RESPONSE / no status). */
+async function withNetworkRetry<T>(
+  fn: () => Promise<T>,
+  maxAttempts = 4,
+  delayMs = 800
+): Promise<T> {
+  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+    try {
+      return await fn();
+    } catch (err: unknown) {
+      const isNetworkError =
+        err instanceof Error &&
+        (err.message === 'Network Error' ||
+          (err as { code?: string }).code === 'ERR_EMPTY_RESPONSE' ||
+          (err as { response?: unknown }).response === undefined);
+
+      if (isNetworkError && attempt < maxAttempts) {
+        console.warn(`Network error — retry ${attempt}/${maxAttempts - 1} in ${delayMs}ms…`);
+        await new Promise((r) => setTimeout(r, delayMs * attempt));
+      } else {
+        throw err;
+      }
+    }
+  }
+  throw new Error('Max retries exceeded');
+}
+
 export const useAuthStore = create<AuthStore>()(
   persist(
     (set, get) => ({
       ...initialState,
 
-  login: async (email, password) => {
-  set({ isLoading: true });
-  try {
-    const tokens = await authApi.login({ email, password });
-
-    // ❌ REMOVA ESTA LINHA: tokenStorage.set(tokens); 
-    // O persist() abaixo já vai gravar isso automaticamente no localStorage
-
-    set({ 
-      tokens, // Aqui tokens deve ser { access: "...", refresh: "..." }
-      isAuthenticated: true 
-    });
-
-    await get().fetchMe(tokens.access);
-
-  } catch (error) {
-    console.error("Erro no login:", error);
-  } finally {
-    set({ isLoading: false });
-  }
-},
+      login: async (email, password) => {
+        set({ isLoading: true });
+        try {
+          const tokens = await withNetworkRetry(() =>
+            authApi.login({ email, password })
+          );
+          set({ tokens, isAuthenticated: true });
+          await get().fetchMe(tokens.access);
+        } catch (error) {
+          // Reset auth state on failure so the login form stays visible
+          set({ tokens: null, isAuthenticated: false });
+          throw error; // re-throw so the login form can show the error
+        } finally {
+          set({ isLoading: false });
+        }
+      },
 
       logout: async () => {
         set({ isLoading: true });

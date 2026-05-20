@@ -2,6 +2,25 @@ import { create } from 'zustand';
 import type { Gallery, Photo, ModalState, FilterState } from '@/types';
 import { galleryApi, photoApi } from '@/lib/api';
 
+/** Retry a fn up to maxAttempts times on network errors (backend cold-start). */
+async function withNetworkRetry<T>(fn: () => Promise<T>, maxAttempts = 3, delayMs = 1000): Promise<T> {
+  for (let i = 1; i <= maxAttempts; i++) {
+    try {
+      return await fn();
+    } catch (err: unknown) {
+      const isNetwork =
+        (err as { message?: string })?.message === 'Network Error' ||
+        (err as { response?: unknown })?.response === undefined;
+      if (isNetwork && i < maxAttempts) {
+        await new Promise((r) => setTimeout(r, delayMs * i));
+      } else {
+        throw err;
+      }
+    }
+  }
+  throw new Error('Max retries exceeded');
+}
+
 interface GalleryStore {
   galleries: Gallery[];
   currentGallery: Gallery | null;
@@ -57,7 +76,7 @@ export const useGalleryStore = create<GalleryStore>()((set, get) => ({
   fetchGalleries: async () => {
     set({ isLoadingGalleries: true });
     try {
-      const result = await galleryApi.list({ perPage: 50 });
+      const result = await withNetworkRetry(() => galleryApi.list({ perPage: 50 }));
 
       // Normaliza qualquer formato que o interceptor possa retornar:
       // 1. Array direto             → [gallery, ...]

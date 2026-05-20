@@ -187,7 +187,7 @@ def _apply_logo_watermark(
     logo = Image.open(io.BytesIO(logo_bytes)).convert("RGBA")
 
     # Scale logo to 15% of image width
-    logo_target_w = max(80, int(img_w * 0.15))
+    logo_target_w = max(80, int(img_w * 0.25))
     ratio = logo_target_w / logo.width
     logo = logo.resize(
         (logo_target_w, int(logo.height * ratio)),

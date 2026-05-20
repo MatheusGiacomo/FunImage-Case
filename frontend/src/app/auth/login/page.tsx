@@ -41,11 +41,15 @@ export default function LoginPage() {
     try {
       await login(data.email, data.password);
       toast.success('Bem-vindo de volta');
-      window.location.assign('/dashboard')
+      window.location.assign('/dashboard');
     } catch (err: unknown) {
-      const message =
-        (err as { response?: { data?: { detail?: string } } })?.response?.data
-          ?.detail ?? 'Credenciais inválidas';
+      const isNetworkError =
+        (err as { message?: string })?.message === 'Network Error' ||
+        (err as { response?: unknown })?.response === undefined;
+      const message = isNetworkError
+        ? 'Servidor indisponível. Verifique se o backend está rodando.'
+        : ((err as { response?: { data?: { detail?: string } } })?.response?.data
+            ?.detail ?? 'Credenciais inválidas');
       toast.error(message);
     }
   };
@@ -219,7 +223,7 @@ export default function LoginPage() {
                 {isLoading ? (
                   <>
                     <Loader2 size={16} className="animate-spin" />
-                    Entrando…
+                    Conectando…
                   </>
                 ) : (
                   'Entrar'
