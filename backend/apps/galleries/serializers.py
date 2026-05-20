@@ -135,3 +135,4 @@ class GalleryShareSerializer(serializers.Serializer):
     share_url = serializers.CharField()
     share_token = serializers.CharField()
     expires_at = serializers.DateTimeField(allow_null=True)
+    

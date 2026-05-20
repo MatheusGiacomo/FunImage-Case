@@ -249,3 +249,4 @@ def get_photo_urls(photo) -> dict[str, str | None]:
             "watermarked_url": service.get_public_url(photo.watermarked_file) if photo.watermarked_file else None,
             "thumbnail_url": service.get_public_url(photo.thumbnail_file) if photo.thumbnail_file else None,
         }
+    

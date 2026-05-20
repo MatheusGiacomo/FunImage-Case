@@ -146,3 +146,4 @@ class SignedDownloadSerializer(serializers.Serializer):
 
 class FavoriteToggleSerializer(serializers.Serializer):
     is_favorited = serializers.BooleanField()
+    
