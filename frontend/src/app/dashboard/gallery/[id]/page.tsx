@@ -3,7 +3,7 @@
 import { useEffect, useCallback, useRef } from 'react';
 import { useParams } from 'next/navigation';
 import { motion } from 'framer-motion';
-import { ArrowLeft, Upload, Share2, ShoppingBag, Images } from 'lucide-react';
+import { ArrowLeft, Upload, Share2, ShoppingBag, Images, Download, Loader2 } from 'lucide-react';
 import Link from 'next/link';
 import { useGalleryStore } from '@/store/gallery.store';
 import PhotoGrid from '@/components/gallery/PhotoGrid';
@@ -35,6 +35,7 @@ export default function GalleryPage() {
 
   const [uploadOpen, setUploadOpen] = useState(false);
   const [showAlbumPurchase, setShowAlbumPurchase] = useState(false);
+  const [isDownloadingAlbum, setIsDownloadingAlbum] = useState(false);
   const observerRef = useRef<IntersectionObserver | null>(null);
   const sentinelRef = useRef<HTMLDivElement | null>(null);
 
@@ -76,6 +77,19 @@ export default function GalleryPage() {
     observerRef.current.observe(sentinel);
     return () => observerRef.current?.disconnect();
   }, [handleIntersect]);
+
+  const handleDownloadAlbum = async () => {
+    if (!currentGallery) return;
+    setIsDownloadingAlbum(true);
+    try {
+      await galleryApi.downloadAlbum(currentGallery.id, currentGallery.name);
+      toast.success('Download iniciado!');
+    } catch {
+      toast.error('Erro ao baixar álbum. Certifique-se de ter adquirido as fotos.');
+    } finally {
+      setIsDownloadingAlbum(false);
+    }
+  };
 
   const handleShare = async () => {
     try {
@@ -125,15 +139,32 @@ export default function GalleryPage() {
 
             {/* Actions */}
             <div className="flex items-center gap-2">
-              {/* Adquirir álbum — visible to non-admin users with photos */}
               {user?.role !== 'admin' && photos.length > 0 && (
-                <button
-                  onClick={() => setShowAlbumPurchase(true)}
-                  className="btn-ghost gap-2 text-sm py-2 text-gold-400 hover:text-gold-300 border-gold-500/30 hover:border-gold-400/50"
-                >
-                  <ShoppingBag size={14} />
-                  <span className="hidden sm:inline">Adquirir álbum</span>
-                </button>
+                <>
+                  {/* Adquirir álbum */}
+                  <button
+                    onClick={() => setShowAlbumPurchase(true)}
+                    className="btn-ghost gap-2 text-sm py-2 text-gold-400 hover:text-gold-300 border-gold-500/30 hover:border-gold-400/50"
+                  >
+                    <ShoppingBag size={14} />
+                    <span className="hidden sm:inline">Adquirir álbum</span>
+                  </button>
+
+                  {/* Download álbum completo */}
+                  <button
+                    onClick={handleDownloadAlbum}
+                    disabled={isDownloadingAlbum}
+                    className="btn-ghost gap-2 text-sm py-2"
+                    title="Baixar álbum completo (ZIP)"
+                  >
+                    {isDownloadingAlbum
+                      ? <Loader2 size={14} className="animate-spin" />
+                      : <Download size={14} />}
+                    <span className="hidden sm:inline">
+                      {isDownloadingAlbum ? 'Baixando…' : 'Baixar álbum'}
+                    </span>
+                  </button>
+                </>
               )}
               {user?.role === 'admin' && (
                 <button
@@ -144,10 +175,7 @@ export default function GalleryPage() {
                   <span className="hidden sm:inline">Upload</span>
                 </button>
               )}
-              <button
-                onClick={handleShare}
-                className="btn-ghost gap-2 text-sm py-2"
-              >
+              <button onClick={handleShare} className="btn-ghost gap-2 text-sm py-2">
                 <Share2 size={14} />
                 <span className="hidden sm:inline">Compartilhar</span>
               </button>
@@ -209,7 +237,7 @@ export default function GalleryPage() {
         <PurchaseDialog
           isOpen={showAlbumPurchase}
           target={{
-            type: 'album' as const,
+            type: 'album',
             galleryId: currentGallery.id,
             galleryName: currentGallery.name,
             photoCount: totalPhotos,

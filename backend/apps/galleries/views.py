@@ -4,6 +4,8 @@ Gallery CRUD — scoped by user role.
 """
 
 import logging
+from pathlib import Path
+from django.conf import settings
 from django.utils.decorators import method_decorator
 from django.views.decorators.cache import cache_page
 from rest_framework import status, filters
@@ -97,6 +99,66 @@ class GalleryViewSet(ModelViewSet):
         except Gallery.DoesNotExist:
             raise ResourceNotFoundException("Galeria não encontrada ou não está pública.")
         return Response(GallerySerializer(gallery, context={"request": request}).data)
+
+    @action(detail=True, methods=["get"], url_path="download")
+    def download_album(self, request, pk=None):
+        """Download all purchased photos from a gallery as a ZIP file."""
+        import io
+        import zipfile
+        from django.http import HttpResponse
+        from apps.photos.models import Photo, PhotoStatus
+        from apps.photos.services.storage import get_storage_service
+
+        gallery = self.get_object()
+
+        photos = list(Photo.objects.filter(
+            gallery=gallery,
+            deleted_at__isnull=True,
+            status=PhotoStatus.READY,
+            is_purchased=True,
+        ).order_by("sort_order", "created_at"))
+
+        if not photos:
+            from apps.core.exceptions import BusinessException
+            raise BusinessException(
+                "Nenhuma foto adquirida nesta galeria. Adquira o álbum antes de fazer o download."
+            )
+
+        storage = get_storage_service()
+
+        # Build ZIP fully in memory — avoids streaming/DB connection issues
+        buf = io.BytesIO()
+        with zipfile.ZipFile(buf, mode="w", compression=zipfile.ZIP_DEFLATED) as zf:
+            for photo in photos:
+                try:
+                    if settings.USE_S3 and photo.original_file:
+                        file_bytes = storage.download_bytes(photo.original_file)
+                    elif not settings.USE_S3 and photo.original_file:
+                        file_path = Path(settings.MEDIA_ROOT) / photo.original_file
+                        file_bytes = file_path.read_bytes()
+                    else:
+                        continue
+                    zf.writestr(photo.filename, file_bytes)
+                    logger.debug("ZIP: added %s (%d bytes)", photo.filename, len(file_bytes))
+                except Exception as e:
+                    logger.warning("ZIP: skipping photo %s: %s", photo.id, e)
+
+        buf.seek(0)
+        zip_bytes = buf.read()
+
+        safe_name = "".join(
+            c if c.isalnum() or c in "._- " else "_"
+            for c in gallery.name
+        ).strip() or "album"
+
+        response = HttpResponse(zip_bytes, content_type="application/zip")
+        response["Content-Disposition"] = f'attachment; filename="{safe_name}.zip"'
+        response["Content-Length"] = len(zip_bytes)
+        logger.info(
+            "Album ZIP download: gallery %s (%d photos, %d bytes) by %s",
+            gallery.id, len(photos), len(zip_bytes), request.user.id,
+        )
+        return response
 
     @action(detail=True, methods=["post"], url_path="purchase")
     def purchase(self, request, pk=None):

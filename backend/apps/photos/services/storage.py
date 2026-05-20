@@ -94,6 +94,11 @@ class S3StorageService:
             url = url.replace(internal, public, 1)
         return url
 
+    def download_bytes(self, key: str) -> bytes:
+        """Fetch the raw bytes of an object from S3."""
+        response = self._client.get_object(Bucket=self._bucket, Key=key)
+        return response["Body"].read()
+
     def delete(self, key: str) -> None:
         try:
             self._client.delete_object(Bucket=self._bucket, Key=key)

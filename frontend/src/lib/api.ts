@@ -151,6 +151,12 @@ client.interceptors.request.use((config) => {
 
   client.interceptors.response.use(
     (response) => {
+      // Skip processing for binary responses — the interceptor's JSON envelope
+      // unwrapping and keysToCamel conversion would corrupt binary data (ZIP, etc.)
+      if (response.config.responseType === 'blob') {
+        return response;
+      }
+
       const raw = response.data;
 
       // Desembrulha o envelope { success: true, data: ..., meta: ... }
@@ -321,6 +327,22 @@ export const galleryApi = {
   purchase: async (galleryId: string, code: string): Promise<{ unlocked: number }> => {
     const { data } = await apiClient.post(`/galleries/${galleryId}/purchase/`, { code });
     return data;
+  },
+
+  downloadAlbum: async (galleryId: string, galleryName: string): Promise<void> => {
+    const response = await apiClient.get(`/galleries/${galleryId}/download/`, {
+      responseType: 'blob',
+    });
+    // response.data is already a Blob when responseType is 'blob'
+    const blob = new Blob([response.data], { type: 'application/zip' });
+    const url = window.URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `${galleryName.replace(/\s+/g, '_')}.zip`;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    window.URL.revokeObjectURL(url);
   },
 
   getShareLink: async (id: string): Promise<{ shareUrl: string }> => {
