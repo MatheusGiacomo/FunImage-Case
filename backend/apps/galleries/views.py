@@ -14,8 +14,6 @@ from rest_framework.viewsets import ModelViewSet
 from django_filters.rest_framework import DjangoFilterBackend
 from drf_spectacular.utils import extend_schema, extend_schema_view
 
-# REMOVIDO: from apps.photos.views import PhotoViewSet (Causava o erro circular)
-
 from apps.core.permissions import IsGalleryOwnerOrAdmin
 from apps.core.exceptions import ResourceNotFoundException
 from .models import Gallery
@@ -63,6 +61,24 @@ class GalleryViewSet(ModelViewSet):
         if self.action == "shared":
             return [AllowAny()]
         return [IsAuthenticated()]
+
+    def perform_create(self, serializer):
+        gallery = serializer.save(created_by=self.request.user)
+        # Notify the client that a new album was created for them
+        # (only when an admin creates it — skip self-notification)
+        if self.request.user.is_admin and gallery.client != self.request.user:
+            try:
+                from apps.notifications.utils import notify
+                from apps.notifications.models import NotificationType
+                notify(
+                    recipient=gallery.client,
+                    notification_type=NotificationType.ALBUM_CREATED,
+                    title="Novo álbum criado para você",
+                    message=f'O álbum "{gallery.name}" foi criado e já está disponível.',
+                    data={"gallery_id": str(gallery.id), "gallery_name": gallery.name},
+                )
+            except Exception as notif_err:
+                logger.warning("Could not send album_created notification: %s", notif_err)
 
     def perform_destroy(self, instance):
         instance.delete()
@@ -147,6 +163,25 @@ class GalleryViewSet(ModelViewSet):
             c if c.isalnum() or c in "._- " else "_"
             for c in gallery.name
         ).strip() or "album"
+
+        # Notify admins when a client downloads the full album
+        if not request.user.is_admin:
+            try:
+                from apps.notifications.utils import notify_all_admins
+                from apps.notifications.models import NotificationType
+                notify_all_admins(
+                    notification_type=NotificationType.ALBUM_DOWNLOADED,
+                    title="Álbum baixado por cliente",
+                    message=f'{request.user.name} baixou o álbum "{gallery.name}" ({len(photos)} foto{"s" if len(photos) > 1 else ""}).',
+                    data={
+                        "gallery_id":   str(gallery.id),
+                        "gallery_name": gallery.name,
+                        "client_name":  request.user.name,
+                        "photo_count":  len(photos),
+                    },
+                )
+            except Exception as notif_err:
+                logger.warning("Could not send album_downloaded notification: %s", notif_err)
 
         response = HttpResponse(zip_bytes, content_type="application/zip")
         response["Content-Disposition"] = f'attachment; filename="{safe_name}.zip"'

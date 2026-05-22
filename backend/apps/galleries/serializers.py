@@ -105,13 +105,11 @@ class GalleryCreateSerializer(serializers.ModelSerializer):
         fields = ["name", "description", "is_public", "client_id"]
 
     def to_representation(self, instance):
-        """Return the full GallerySerializer representation after create/update.
-        This ensures the response contains id, created_at, photo_count, etc."""
+        """Return the full GallerySerializer representation after create/update."""
         return GallerySerializer(instance, context=self.context).to_representation(instance)
 
     def validate(self, attrs):
         request = self.context["request"]
-        # If client is not admin, gallery belongs to themselves
         if not request.user.is_admin:
             attrs["client_id"] = request.user.id
         elif "client_id" not in attrs:
@@ -120,11 +118,15 @@ class GalleryCreateSerializer(serializers.ModelSerializer):
 
     def create(self, validated_data):
         from apps.users.models import User
+
         client_id = validated_data.pop("client_id")
+        # Remove created_by do validated_data para evitar conflito com
+        # o argumento injetado pelo serializer.save(created_by=...) no views.py
+        validated_data.pop("created_by", None)
+
         client = User.objects.get(id=client_id)
         return Gallery.objects.create(
             client=client,
-            created_by=self.context["request"].user,
             **validated_data,
         )
 

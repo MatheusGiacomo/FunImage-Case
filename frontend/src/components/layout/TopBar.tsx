@@ -8,6 +8,7 @@ import { useRouter } from 'next/navigation';
 import { apiClient } from '@/lib/api';
 import { cn } from '@/lib/utils';
 import type { Gallery, Photo } from '@/types';
+import NotificationBell from './NotificationBell';
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -46,10 +47,8 @@ function SearchResultItem({
       onClick={onClick}
       className="w-full flex items-center gap-3 px-4 py-2.5 text-left transition-colors duration-100 hover:bg-[var(--color-hover)]"
     >
-      <span
-        className="shrink-0 w-8 h-8 flex items-center justify-center rounded-lg"
-        style={{ backgroundColor: 'var(--color-input-bg)', color: 'var(--color-text-secondary)' }}
-      >
+      <span className="shrink-0 w-8 h-8 flex items-center justify-center rounded-lg"
+        style={{ backgroundColor: 'var(--color-input-bg)', color: 'var(--color-text-secondary)' }}>
         {icon}
       </span>
       <span className="min-w-0 flex-1">
@@ -69,10 +68,8 @@ function SearchResultItem({
 function SectionLabel({ children }: { children: React.ReactNode }) {
   return (
     <div className="px-4 py-1.5">
-      <span
-        className="text-[10px] font-semibold uppercase tracking-wider"
-        style={{ color: 'var(--color-text-muted)' }}
-      >
+      <span className="text-[10px] font-semibold uppercase tracking-wider"
+        style={{ color: 'var(--color-text-muted)' }}>
         {children}
       </span>
     </div>
@@ -198,7 +195,6 @@ export default function TopBar() {
     (!searchQuery && recentSearches.length > 0)
   );
 
-  // Renderização de segurança (Skeleton) enquanto não monta
   if (!isMounted) {
     return (
       <header
@@ -346,11 +342,7 @@ export default function TopBar() {
                           className="w-full text-left px-4 py-2 text-xs transition-colors hover:bg-[var(--color-hover)]"
                           style={{ color: 'var(--color-text-muted)' }}
                         >
-                          Ver todos os resultados para{' '}
-                          <span className="font-semibold" style={{ color: 'var(--color-text-secondary)' }}>
-                            "{searchQuery}"
-                          </span>{' '}
-                          →
+                          Ver todos os resultados para <span className="font-semibold" style={{ color: 'var(--color-text-secondary)' }}>"{searchQuery}"</span> →
                         </button>
                       </>
                     )}
@@ -359,10 +351,7 @@ export default function TopBar() {
                     {showEmpty && (
                       <div className="px-4 py-4 text-center">
                         <p className="text-sm" style={{ color: 'var(--color-text-muted)' }}>
-                          Nenhum resultado para{' '}
-                          <span className="font-medium" style={{ color: 'var(--color-text-secondary)' }}>
-                            "{debouncedQuery}"
-                          </span>
+                          Nenhum resultado para <span className="font-medium" style={{ color: 'var(--color-text-secondary)' }}>"{debouncedQuery}"</span>
                         </p>
                       </div>
                     )}
@@ -376,10 +365,7 @@ export default function TopBar() {
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
-              onClick={() => {
-                setSearchOpen(true);
-                setTimeout(() => inputRef.current?.focus(), 50);
-              }}
+              onClick={() => { setSearchOpen(true); setTimeout(() => inputRef.current?.focus(), 50); }}
               className="flex items-center gap-2 transition-colors text-sm"
               style={{ color: 'var(--color-text-muted)' }}
             >
@@ -396,24 +382,12 @@ export default function TopBar() {
         </AnimatePresence>
       </div>
 
-      {/* ── Actions ── */}
+      {/* ── Actions ───────────────────────────────────────────────────── */}
       <div className="flex items-center gap-2">
-        {/* Notificações */}
-        <button
-          className="relative w-9 h-9 flex items-center justify-center rounded-xl transition-all duration-200 hover:bg-[var(--color-hover)]"
-          style={{ color: 'var(--color-text-secondary)' }}
-        >
-          <Bell size={17} />
-          <span
-            className="absolute top-2 right-2 w-2 h-2 rounded-full bg-gold-500 border-2"
-            style={{ borderColor: 'var(--color-topbar)' }}
-          />
-        </button>
+        <NotificationBell />
 
-        {/* Divider */}
         <div className="w-px h-5 mx-1" style={{ backgroundColor: 'var(--color-divider)' }} />
 
-        {/* Avatar */}
         <div className="flex items-center gap-2.5 pl-1">
           <div className="w-8 h-8 rounded-full bg-gold-500/20 border border-gold-500/30 flex items-center justify-center shrink-0">
             <span className="text-gold-500 text-xs font-bold uppercase">

@@ -15,16 +15,17 @@ from drf_spectacular.views import (
 
 # ─── API v1 routes ───────────────────────────────────────────────────────────
 
-from apps.core.views import health_check, dashboard_stats, global_search  # noqa: E402
+from apps.core.views import health_check, global_search  # noqa: E402
 
 api_v1_patterns = [
-    path("auth/", include("apps.authentication.urls", namespace="auth")),
-    path("users/", include("apps.users.urls", namespace="users")),
-    path("galleries/", include("apps.galleries.urls", namespace="galleries")),
-    path("photos/", include("apps.photos.urls", namespace="photos")),
-    path("dashboard/stats/", dashboard_stats, name="dashboard-stats"),
-    path("health/", health_check, name="health"),
-    path("search/", global_search, name="search"),
+    path("auth/",          include("apps.authentication.urls", namespace="auth")),
+    path("users/",         include("apps.users.urls",          namespace="users")),
+    path("galleries/",     include("apps.galleries.urls",      namespace="galleries")),
+    path("photos/",        include("apps.photos.urls",         namespace="photos")),
+    path("notifications/", include("apps.notifications.urls",  namespace="notifications")),
+    path("dashboard/",     include("apps.dashboard.urls",      namespace="dashboard")),  # ← novo
+    path("health/",        health_check,  name="health"),
+    path("search/",        global_search, name="search"),
 ]
 
 urlpatterns = [

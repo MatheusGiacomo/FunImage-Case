@@ -163,6 +163,28 @@ def extract_exif_metadata(self, photo_id: str) -> str:
     Photo.objects.filter(id=photo_id).update(status=PhotoStatus.READY)
     logger.info("Photo %s is now READY", photo_id)
 
+    # Notify gallery client that their photo is ready to view
+    try:
+        photo_refreshed = Photo.objects.select_related("gallery__client").get(id=photo_id)
+        client = photo_refreshed.gallery.client
+        if client:
+            from apps.notifications.utils import notify
+            from apps.notifications.models import NotificationType
+            notify(
+                recipient=client,
+                notification_type=NotificationType.PHOTO_READY,
+                title="Sua foto está pronta",
+                message=f'"{photo_refreshed.filename}" foi processada e já está disponível em "{photo_refreshed.gallery.name}".',
+                data={
+                    "photo_id":     photo_id,
+                    "gallery_id":   str(photo_refreshed.gallery_id),
+                    "gallery_name": photo_refreshed.gallery.name,
+                    "filename":     photo_refreshed.filename,
+                },
+            )
+    except Exception as notif_err:
+        logger.warning("Could not send photo_ready notification for %s: %s", photo_id, notif_err)
+
     return photo_id
 
 

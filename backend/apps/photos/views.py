@@ -180,6 +180,26 @@ class PhotoViewSet(ModelViewSet):
         # Audit log → MongoDB
         _log_download_event(photo, request)
 
+        # Notify admins when a client downloads a photo
+        if not request.user.is_admin:
+            try:
+                from apps.notifications.utils import notify_all_admins
+                from apps.notifications.models import NotificationType
+                notify_all_admins(
+                    notification_type=NotificationType.PHOTO_DOWNLOADED,
+                    title="Foto baixada por cliente",
+                    message=f'{request.user.name} baixou a foto "{photo.filename}" da galeria "{photo.gallery.name}".',
+                    data={
+                        "photo_id":     str(photo.id),
+                        "gallery_id":   str(photo.gallery_id),
+                        "gallery_name": photo.gallery.name,
+                        "client_name":  request.user.name,
+                        "filename":     photo.filename,
+                    },
+                )
+            except Exception as notif_err:
+                logger.warning("Could not send photo_downloaded notification: %s", notif_err)
+
         return Response({
             "url": download_url,
             "token": token_data["token"],
@@ -292,6 +312,27 @@ class PhotoUploadView(APIView):
             except Exception as e:
                 logger.error("Upload failed for file %s: %s", file.name, e)
                 errors.append({"filename": file.name, "error": str(e)})
+
+        # Notify the gallery client when admin uploads photos
+        if created_photos and request.user.is_admin and gallery.client != request.user:
+            try:
+                from apps.notifications.utils import notify
+                from apps.notifications.models import NotificationType
+                count = len(created_photos)
+                notify(
+                    recipient=gallery.client,
+                    notification_type=NotificationType.PHOTO_UPLOADED,
+                    title=f"{count} foto{'s' if count > 1 else ''} adicionada{'s' if count > 1 else ''} ao seu álbum",
+                    message=f'{"Novas fotos foram" if count > 1 else "Uma nova foto foi"} adicionada{"s" if count > 1 else ""} ao álbum "{gallery.name}".',
+                    data={
+                        "gallery_id":   str(gallery.id),
+                        "gallery_name": gallery.name,
+                        "photo_count":  count,
+                        "photo_ids":    [str(p.id) for p in created_photos],
+                    },
+                )
+            except Exception as notif_err:
+                logger.warning("Could not send photo_uploaded notification: %s", notif_err)
 
         response_data = {
             "photos": PhotoSerializer(

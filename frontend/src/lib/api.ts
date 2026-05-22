@@ -21,8 +21,6 @@ import type {
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:8000/api';
 
 // ─── snake_case → camelCase converter ────────────────────────────────────────
-// Django retorna snake_case; os tipos do frontend usam camelCase.
-// Roda em toda resposta via interceptor, nenhum componente vê snake_case.
 
 function toCamel(s: string): string {
   return s.replace(/_([a-z])/g, (_, c) => c.toUpperCase());
@@ -43,7 +41,7 @@ function keysToCamel<T>(obj: unknown): T {
   return obj as T;
 }
 
-// camelCase → snake_case (para serializar requests ao Django)
+// camelCase → snake_case
 function toSnake(s: string): string {
   return s.replace(/([A-Z])/g, (c) => `_${c.toLowerCase()}`);
 }
@@ -95,47 +93,42 @@ const createApiClient = (): AxiosInstance => {
     timeout: 30_000,
   });
 
-client.interceptors.request.use((config) => {
-  try {
-    // Lê sempre do Zustand persist (fotopro:auth) — fonte única de verdade
-    const raw = localStorage.getItem('fotopro:auth');
-    if (!raw) return config;
-
-    const parsed = JSON.parse(raw);
-    const token = parsed.state?.tokens?.access;
-
-    if (token) {
-      config.headers.Authorization = `Bearer ${token}`;
-    } else {
-      console.warn("⚠️ INTERCEPTOR: token não encontrado em fotopro:auth > state.tokens.access");
-    }
-  } catch (e) {
-    console.error("❌ INTERCEPTOR: Erro ao ler localStorage", e);
-  }
-
-  // Converte o body (JSON) de camelCase para snake_case
-  if (config.data && !(config.data instanceof FormData)) {
+  client.interceptors.request.use((config) => {
     try {
-      config.data = keysToSnake(config.data);
-    } catch {
-      // Se não for serializável, deixa como está
+      const raw = localStorage.getItem('fotopro:auth');
+      if (!raw) return config;
+
+      const parsed = JSON.parse(raw);
+      const token = parsed.state?.tokens?.access;
+
+      if (token) {
+        config.headers.Authorization = `Bearer ${token}`;
+      } else {
+        console.warn('⚠️ INTERCEPTOR: token não encontrado em fotopro:auth > state.tokens.access');
+      }
+    } catch (e) {
+      console.error('❌ INTERCEPTOR: Erro ao ler localStorage', e);
     }
-  }
 
-  // Converte query params de camelCase para snake_case
-  // ex: { perPage: 30 } → { per_page: 30 }
-  if (config.params && typeof config.params === 'object') {
-    try {
-      config.params = keysToSnake(config.params);
-    } catch {
-      // Se falhar, mantém original
+    if (config.data && !(config.data instanceof FormData)) {
+      try {
+        config.data = keysToSnake(config.data);
+      } catch {
+        // mantém original
+      }
     }
-  }
 
-  return config;
-});
+    if (config.params && typeof config.params === 'object') {
+      try {
+        config.params = keysToSnake(config.params);
+      } catch {
+        // mantém original
+      }
+    }
 
-  // Response: handle 401, refresh token + snake_case → camelCase
+    return config;
+  });
+
   let isRefreshing = false;
   let failedQueue: Array<{
     resolve: (value: string) => void;
@@ -151,20 +144,15 @@ client.interceptors.request.use((config) => {
 
   client.interceptors.response.use(
     (response) => {
-      // Skip processing for binary responses — the interceptor's JSON envelope
-      // unwrapping and keysToCamel conversion would corrupt binary data (ZIP, etc.)
+      const raw = response.data;
+
+      // Não processa respostas blob (downloads)
       if (response.config.responseType === 'blob') {
         return response;
       }
 
-      const raw = response.data;
-
-      // Desembrulha o envelope { success: true, data: ..., meta: ... }
-      // que o SuccessRenderer do Django adiciona em toda resposta.
       if (raw && typeof raw === 'object' && 'success' in raw) {
         if (raw.meta) {
-          // Resposta paginada: reconstrói no formato de PaginatedResponse<T>
-          // O tipo usa o campo "data" para os itens, não "results"
           response.data = {
             data:       raw.data ?? [],
             total:      raw.meta.total ?? 0,
@@ -173,12 +161,10 @@ client.interceptors.request.use((config) => {
             totalPages: raw.meta.total_pages ?? raw.meta.totalPages ?? 1,
           };
         } else {
-          // Resposta simples: retorna apenas o conteúdo de data
           response.data = raw.data ?? null;
         }
       }
 
-      // Converte todas as chaves de snake_case para camelCase
       if (response.data) {
         response.data = keysToCamel(response.data);
       }
@@ -213,45 +199,34 @@ client.interceptors.request.use((config) => {
         }
 
         try {
-  // Chamada de refresh usando a instância limpa do axios
-  const response = await axios.post(`${API_BASE_URL}/auth/token/refresh/`, { 
-    refresh: tokens.refresh 
-  });
+          const response = await axios.post(`${API_BASE_URL}/auth/token/refresh/`, {
+            refresh: tokens.refresh,
+          });
 
-  // A MÁGICA: Captura o token de dentro do envelope 'data' que o Django envia
-  // Verificamos as duas possibilidades para não dar erro
-  // refresh usa axios puro (sem interceptor) — desembrulha manualmente
-  const payload = response.data?.data ?? response.data;
-  const newAccessToken = payload?.access;
+          const payload = response.data?.data ?? response.data;
+          const newAccessToken = payload?.access;
 
-  if (!newAccessToken) {
-    throw new Error("Token não encontrado na resposta do servidor");
-  }
+          if (!newAccessToken) {
+            throw new Error('Token não encontrado na resposta do servidor');
+          }
 
-  // Montamos o novo objeto SEM o envelope 'success' ou 'data' do Django
-  const newTokens: AuthTokens = { 
-    access: newAccessToken,
-    refresh: tokens.refresh 
-  };
+          const newTokens: AuthTokens = {
+            access: newAccessToken,
+            refresh: tokens.refresh,
+          };
 
-  // 1. Atualizamos o storage (isso deve sobrescrever o dado antigo)
-  tokenStorage.set(newTokens);
-  
-  // 2. Liberamos a fila
-  processQueue(null, newAccessToken);
-
-  // 3. Atualizamos o header da requisição que falhou e tentamos de novo
-  originalRequest.headers.Authorization = `Bearer ${newAccessToken}`;
-  return client(originalRequest);
-
-} catch (refreshError) {
-  processQueue(refreshError, null);
-  tokenStorage.clear();
-  window.location.href = '/auth/login';
-  return Promise.reject(refreshError);
-} finally {
-  isRefreshing = false;
-}
+          tokenStorage.set(newTokens);
+          processQueue(null, newAccessToken);
+          originalRequest.headers.Authorization = `Bearer ${newAccessToken}`;
+          return client(originalRequest);
+        } catch (refreshError) {
+          processQueue(refreshError, null);
+          tokenStorage.clear();
+          window.location.href = '/auth/login';
+          return Promise.reject(refreshError);
+        } finally {
+          isRefreshing = false;
+        }
       }
 
       return Promise.reject(error);
@@ -263,12 +238,10 @@ client.interceptors.request.use((config) => {
 
 export const apiClient = createApiClient();
 
-// Auth API
+// ─── Auth API ─────────────────────────────────────────────────────────────────
 
 export const authApi = {
   login: async (credentials: LoginCredentials) => {
-    // O interceptor já desembrulha o envelope { success, data }
-    // response.data é diretamente { access, refresh, user }
     const { data } = await apiClient.post<AuthTokens>('/auth/login/', credentials);
     return data;
   },
@@ -282,15 +255,15 @@ export const authApi = {
   },
 
   me: async (token?: string): Promise<User> => {
-    const config = token 
-      ? { headers: { Authorization: `Bearer ${token}` } } 
+    const config = token
+      ? { headers: { Authorization: `Bearer ${token}` } }
       : {};
     const { data } = await apiClient.get<User>('/auth/me/', config);
     return data;
   },
 };
 
-// Galeria API
+// ─── Gallery API ──────────────────────────────────────────────────────────────
 
 export const galleryApi = {
   list: async (params?: {
@@ -329,21 +302,6 @@ export const galleryApi = {
     return data;
   },
 
-  downloadAlbum: async (galleryId: string, galleryName: string): Promise<void> => {
-    const response = await apiClient.get(`/galleries/${galleryId}/download/`, {
-      responseType: 'blob',
-    });
-    // response.data is already a Blob when responseType is 'blob'
-    const blob = new Blob([response.data], { type: 'application/zip' });
-    const url = window.URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = `${galleryName.replace(/\s+/g, '_')}.zip`;
-    document.body.appendChild(link);
-    link.click();
-    link.remove();
-    window.URL.revokeObjectURL(url);
-  },
 
   getShareLink: async (id: string): Promise<{ shareUrl: string }> => {
     const { data } = await apiClient.post<{ shareUrl: string }>(
@@ -351,9 +309,25 @@ export const galleryApi = {
     );
     return data;
   },
+
+  // ── Download álbum completo como ZIP ──────────────────────────────────────
+  downloadAlbum: async (id: string, galleryName: string): Promise<void> => {
+    const response = await apiClient.get(`/galleries/${id}/download/`, {
+      responseType: 'blob',
+    });
+    const blob = new Blob([response.data as BlobPart], { type: 'application/zip' });
+    const objectUrl = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = objectUrl;
+    link.download = `${galleryName}.zip`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(objectUrl);
+  },
 };
 
-// Fotos API
+// ─── Photos API ───────────────────────────────────────────────────────────────
 
 export const photoApi = {
   list: async (
@@ -379,22 +353,21 @@ export const photoApi = {
       formData.append('photo', files[i]);
       formData.append('gallery_id', galleryId);
 
-      const { data } = await apiClient.post<{ photos: Photo[]; errors?: { filename: string; error: string }[] }>(
-        '/photos/upload/',
-        formData,
-        {
-          headers: { 'Content-Type': 'multipart/form-data' },
-          onUploadProgress: (progressEvent) => {
-            if (progressEvent.total) {
-              const pct = Math.round(
-                (progressEvent.loaded / progressEvent.total) * 100
-              );
-              onProgress?.(i, pct);
-            }
-          },
-        }
-      );
-      // Backend returns { photos: Photo[], errors?: [...] }
+      const { data } = await apiClient.post<{
+        photos: Photo[];
+        errors?: { filename: string; error: string }[];
+      }>('/photos/upload/', formData, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+        onUploadProgress: (progressEvent) => {
+          if (progressEvent.total) {
+            const pct = Math.round(
+              (progressEvent.loaded / progressEvent.total) * 100
+            );
+            onProgress?.(i, pct);
+          }
+        },
+      });
+
       if (data.photos?.length) {
         results.push(...data.photos);
       }
@@ -427,15 +400,6 @@ export const photoApi = {
   },
 };
 
-// ─── Dashboard ────────────────────────────────────────────────────────────────
-
-export const dashboardApi = {
-  getStats: async () => {
-    const { data } = await apiClient.get('/dashboard/stats/');
-    return data;
-  },
-};
-
 // ─── Search API ───────────────────────────────────────────────────────────────
 
 export const searchApi = {
@@ -448,7 +412,42 @@ export const searchApi = {
   },
 };
 
-// ─── Helpers ─────────────────────────────────────────────────────────────────
+// ─── Dashboard API ────────────────────────────────────────────────────────────
+
+interface DashboardStatCard {
+  key: string;
+  label: string;
+  value: number | string;
+  sub: string;
+  icon: string;
+  trend: string | null;
+}
+
+interface DashboardRecentPhoto {
+  id: string;
+  filename: string;
+  galleryId: string;
+  thumbnailUrl: string | null;
+  width: number;
+  height: number;
+  createdAt: string;
+}
+
+export interface DashboardData {
+  role: 'admin' | 'client';
+  stats: DashboardStatCard[];
+  recentGalleries: unknown[];
+  recentPhotos?: DashboardRecentPhoto[];
+}
+
+export const dashboardApi = {
+  getStats: async (): Promise<DashboardData> => {
+    const { data } = await apiClient.get<DashboardData>('/dashboard/stats/');
+    return data;
+  },
+};
+
+// ─── Helper ───────────────────────────────────────────────────────────────────
 
 export const downloadFile = async (url: string, filename: string): Promise<void> => {
   const response = await fetch(url);
