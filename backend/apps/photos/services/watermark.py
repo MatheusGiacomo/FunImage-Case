@@ -4,7 +4,9 @@ Watermark service — applies a semi-transparent text watermark to images.
 
 Design decisions:
   - Text watermark in the bottom-right corner with configurable opacity
-  - Font scales proportionally to image width (5% by default)
+  - Font scales proportionally to image width (9% by default)
+  - Semi-transparent dark pill behind text for contrast on any background
+  - Drop shadow with bigger offset for depth on light backgrounds
   - Repeated tiled watermark option for maximum IP protection
   - Preserves EXIF orientation before processing
   - Returns bytes — stateless, no filesystem side effects in the service itself
@@ -117,8 +119,8 @@ def _apply_text_watermark(
     img_w: int,
     img_h: int,
 ) -> None:
-    """Draw semi-transparent text watermark."""
-    font_size = max(16, int(img_w * settings.WATERMARK_FONT_SCALE))
+    """Draw semi-transparent text watermark with background pill for contrast."""
+    font_size = max(24, int(img_w * settings.WATERMARK_FONT_SCALE))
     font = _get_font(font_size)
 
     # Measure text
@@ -126,18 +128,49 @@ def _apply_text_watermark(
     text_w = bbox[2] - bbox[0]
     text_h = bbox[3] - bbox[1]
 
-    margin = max(20, int(img_w * 0.02))
+    # Margin scales with image size — 3% of width, minimum 30px
+    margin = max(30, int(img_w * 0.03))
 
     if position == "tiled":
         _draw_tiled_text(draw, text, font, alpha, img_w, img_h, text_w, text_h)
     elif position == "center":
         x = (img_w - text_w) // 2
         y = (img_h - text_h) // 2
+        _draw_pill_background(draw, x, y, text_w, text_h, font_size, alpha)
         _draw_text_with_shadow(draw, (x, y), text, font, alpha)
     else:  # bottom-right
         x = img_w - text_w - margin
         y = img_h - text_h - margin
+        _draw_pill_background(draw, x, y, text_w, text_h, font_size, alpha)
         _draw_text_with_shadow(draw, (x, y), text, font, alpha)
+
+
+def _draw_pill_background(
+    draw: ImageDraw.ImageDraw,
+    x: int,
+    y: int,
+    text_w: int,
+    text_h: int,
+    font_size: int,
+    text_alpha: int,
+) -> None:
+    """
+    Draw a rounded-rectangle (pill) behind the watermark text.
+    Makes the text legible on both dark and light backgrounds.
+    Background opacity is 55% of the text opacity so it never overpowers.
+    """
+    pad_x = int(font_size * 0.55)
+    pad_y = int(font_size * 0.30)
+    radius = int(font_size * 0.35)
+    bg_alpha = int(text_alpha * 0.55)
+
+    rect = [
+        x - pad_x,
+        y - pad_y,
+        x + text_w + pad_x,
+        y + text_h + pad_y,
+    ]
+    draw.rounded_rectangle(rect, radius=radius, fill=(0, 0, 0, bg_alpha))
 
 
 def _draw_text_with_shadow(
@@ -147,12 +180,17 @@ def _draw_text_with_shadow(
     font,
     alpha: int,
 ) -> None:
-    """Draw text with a subtle drop shadow for legibility on any background."""
+    """
+    Draw text with a stronger drop shadow for legibility on any background.
+    Shadow offset is 3px (up from 2px) and shadow opacity is higher.
+    """
     x, y = position
-    shadow_alpha = min(alpha + 60, 255)
+    # Shadow is fully opaque so it always punches through the background
+    shadow_alpha = min(alpha + 100, 255)
 
-    # Shadow
-    draw.text((x + 2, y + 2), text, font=font, fill=(0, 0, 0, shadow_alpha))
+    # Multi-pass shadow for a softer, deeper look
+    draw.text((x + 3, y + 3), text, font=font, fill=(0, 0, 0, shadow_alpha))
+    draw.text((x + 2, y + 2), text, font=font, fill=(0, 0, 0, shadow_alpha - 30))
     # Main text — white
     draw.text((x, y), text, font=font, fill=(255, 255, 255, alpha))
 
@@ -167,11 +205,16 @@ def _draw_tiled_text(
     text_w: int,
     text_h: int,
 ) -> None:
-    """Tile watermark across the entire image."""
-    step_x = text_w + 80
-    step_y = text_h + 60
+    """
+    Tile watermark across the entire image in a diagonal grid.
+    Tighter spacing (was +80/+60 gap, now +50/+40) and each tile
+    gets the pill background so tiles remain readable everywhere.
+    """
+    step_x = text_w + 50
+    step_y = text_h + 40
     for y in range(-text_h, img_h + step_y, step_y):
         for x in range(-text_w, img_w + step_x, step_x):
+            _draw_pill_background(draw, x, y, text_w, text_h, int(text_h * 0.8), alpha)
             _draw_text_with_shadow(draw, (x, y), text, font, alpha)
 
 
@@ -183,11 +226,11 @@ def _apply_logo_watermark(
     img_w: int,
     img_h: int,
 ) -> None:
-    """Paste a logo PNG as watermark."""
+    """Paste a logo PNG as watermark — scaled to 22% of image width (up from 15%)."""
     logo = Image.open(io.BytesIO(logo_bytes)).convert("RGBA")
 
-    # Scale logo to 15% of image width
-    logo_target_w = max(80, int(img_w * 0.15))
+    # Scale logo to 22% of image width for better visibility
+    logo_target_w = max(100, int(img_w * 0.22))
     ratio = logo_target_w / logo.width
     logo = logo.resize(
         (logo_target_w, int(logo.height * ratio)),
@@ -199,7 +242,7 @@ def _apply_logo_watermark(
     a = a.point(lambda p: int(p * alpha / 255))
     logo = Image.merge("RGBA", (r, g, b, a))
 
-    margin = max(20, int(img_w * 0.02))
+    margin = max(30, int(img_w * 0.03))
     if position == "bottom-right":
         x = img_w - logo.width - margin
         y = img_h - logo.height - margin

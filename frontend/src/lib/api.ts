@@ -427,7 +427,16 @@ export const photoApi = {
   },
 };
 
-// Helper
+// ─── Dashboard ────────────────────────────────────────────────────────────────
+
+export const dashboardApi = {
+  getStats: async () => {
+    const { data } = await apiClient.get('/dashboard/stats/');
+    return data;
+  },
+};
+
+// ─── Helpers ─────────────────────────────────────────────────────────────────
 
 export const downloadFile = async (url: string, filename: string): Promise<void> => {
   const response = await fetch(url);

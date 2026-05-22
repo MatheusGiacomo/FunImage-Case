@@ -268,7 +268,7 @@ STATICFILES_DIRS = [d for d in [BASE_DIR / "static"] if d.exists()]
 
 WATERMARK_TEXT = os.environ.get("WATERMARK_TEXT", "© FotoPro")
 WATERMARK_OPACITY = float(os.environ.get("WATERMARK_OPACITY", "0.35"))
-WATERMARK_FONT_SCALE = float(os.environ.get("WATERMARK_FONT_SCALE", "0.05"))  # 5% of image width
+WATERMARK_FONT_SCALE = float(os.environ.get("WATERMARK_FONT_SCALE", "0.15"))  # 5% of image width
 THUMBNAIL_SIZE = (800, 800)
 THUMBNAIL_QUALITY = 85
 ACCEPTED_IMAGE_TYPES = {"image/jpeg", "image/png", "image/webp"}
