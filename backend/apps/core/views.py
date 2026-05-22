@@ -9,7 +9,7 @@ import logging
 from django.db import connections
 from django.db.utils import OperationalError
 from rest_framework.decorators import api_view, permission_classes
-from rest_framework.permissions import AllowAny
+from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework import status
 
@@ -76,7 +76,6 @@ def health_check(request):
 
 # ─── Dashboard Stats ──────────────────────────────────────────────────────────
 
-from rest_framework.permissions import IsAuthenticated
 from django.db.models import Count, Q
 from django.utils import timezone
 from datetime import timedelta
@@ -250,3 +249,48 @@ def _client_stats(request):
         "recent_photos":    recent_photos,
         "recent_galleries": recent_galleries,
     })
+
+
+# ─── Global Search ────────────────────────────────────────────────────────────
+
+@api_view(["GET"])
+@permission_classes([IsAuthenticated])
+def global_search(request):
+    """
+    GET /api/search/?q=termo
+    Busca unificada — retorna galerias e fotos que correspondem ao termo.
+    Máximo de 5 resultados por categoria para resposta rápida.
+    """
+    from django.db.models import Q
+    from apps.galleries.models import Gallery
+    from apps.photos.models import Photo
+    from apps.galleries.serializers import GalleryListSerializer
+    from apps.photos.serializers import PhotoListSerializer
+
+    q = request.query_params.get("q", "").strip()
+    if not q or len(q) < 2:
+        return Response({"galleries": [], "photos": []})
+
+    user = request.user
+
+    # ── Galerias ────────────────────────────────────────────────────────
+    gallery_qs = Gallery.objects.select_related("client").filter(
+        Q(name__icontains=q) | Q(description__icontains=q) | Q(client__name__icontains=q)
+    )
+    if not user.is_admin:
+        gallery_qs = gallery_qs.filter(client=user)
+    galleries = GalleryListSerializer(
+        gallery_qs[:5], many=True, context={"request": request}
+    ).data
+
+    # ── Fotos ───────────────────────────────────────────────────────────
+    photo_qs = Photo.objects.select_related("gallery__client").filter(
+        Q(filename__icontains=q) | Q(gallery__name__icontains=q)
+    )
+    if not user.is_admin:
+        photo_qs = photo_qs.filter(gallery__client=user)
+    photos = PhotoListSerializer(
+        photo_qs[:5], many=True, context={"request": request}
+    ).data
+
+    return Response({"galleries": galleries, "photos": photos})

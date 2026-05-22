@@ -436,6 +436,18 @@ export const dashboardApi = {
   },
 };
 
+// ─── Search API ───────────────────────────────────────────────────────────────
+
+export const searchApi = {
+  global: async (q: string): Promise<{ galleries: Gallery[]; photos: Photo[] }> => {
+    const { data } = await apiClient.get<{ galleries: Gallery[]; photos: Photo[] }>(
+      '/search/',
+      { params: { q } }
+    );
+    return data as unknown as { galleries: Gallery[]; photos: Photo[] };
+  },
+};
+
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
 export const downloadFile = async (url: string, filename: string): Promise<void> => {

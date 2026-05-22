@@ -15,7 +15,7 @@ from drf_spectacular.views import (
 
 # ─── API v1 routes ───────────────────────────────────────────────────────────
 
-from apps.core.views import health_check, dashboard_stats  # noqa: E402
+from apps.core.views import health_check, dashboard_stats, global_search  # noqa: E402
 
 api_v1_patterns = [
     path("auth/", include("apps.authentication.urls", namespace="auth")),
@@ -24,6 +24,7 @@ api_v1_patterns = [
     path("photos/", include("apps.photos.urls", namespace="photos")),
     path("dashboard/stats/", dashboard_stats, name="dashboard-stats"),
     path("health/", health_check, name="health"),
+    path("search/", global_search, name="search"),
 ]
 
 urlpatterns = [
