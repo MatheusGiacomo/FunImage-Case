@@ -281,6 +281,8 @@ MAX_UPLOAD_SIZE_BYTES = MAX_UPLOAD_SIZE_MB * 1024 * 1024
 # Override via PURCHASE_ACCESS_CODE env var in production.
 PURCHASE_ACCESS_CODE = os.environ.get("PURCHASE_ACCESS_CODE", "121212")
 
+FRONTEND_URL = os.environ.get("FRONTEND_URL", "http://localhost:3000")
+
 # Public-facing MinIO/S3 endpoint used to rewrite presigned URLs so browsers
 # can resolve them. In Docker Compose the internal endpoint is http://minio:9000
 # but browsers can only reach http://localhost:9000.

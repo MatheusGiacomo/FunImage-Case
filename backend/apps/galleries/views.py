@@ -64,8 +64,6 @@ class GalleryViewSet(ModelViewSet):
 
     def perform_create(self, serializer):
         gallery = serializer.save(created_by=self.request.user)
-        # Notify the client that a new album was created for them
-        # (only when an admin creates it — skip self-notification)
         if self.request.user.is_admin and gallery.client != self.request.user:
             try:
                 from apps.notifications.utils import notify
@@ -91,7 +89,8 @@ class GalleryViewSet(ModelViewSet):
             gallery.is_public = True
             gallery.save(update_fields=["is_public", "updated_at"])
 
-        share_url = request.build_absolute_uri(f"/api/galleries/shared/{gallery.share_token}/")
+        # Aponta para o frontend em vez da API
+        share_url = f"{settings.FRONTEND_URL}/gallery/shared/{gallery.share_token}/"
         return Response({
             "share_url": share_url,
             "share_token": gallery.share_token,
@@ -139,7 +138,6 @@ class GalleryViewSet(ModelViewSet):
 
         storage = get_storage_service()
 
-        # Build ZIP fully in memory — avoids streaming/DB connection issues
         buf = io.BytesIO()
         with zipfile.ZipFile(buf, mode="w", compression=zipfile.ZIP_DEFLATED) as zf:
             for photo in photos:
@@ -164,7 +162,6 @@ class GalleryViewSet(ModelViewSet):
             for c in gallery.name
         ).strip() or "album"
 
-        # Notify admins when a client downloads the full album
         if not request.user.is_admin:
             try:
                 from apps.notifications.utils import notify_all_admins
@@ -195,7 +192,6 @@ class GalleryViewSet(ModelViewSet):
     @action(detail=True, methods=["post"], url_path="purchase")
     def purchase(self, request, pk=None):
         """Unlock all photos in a gallery for download using the access code."""
-        from django.conf import settings
         from apps.core.exceptions import BusinessException
         from apps.photos.models import Photo
 
