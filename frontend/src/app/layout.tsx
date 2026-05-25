@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from 'next';
 import { Cormorant_Garamond, DM_Sans, DM_Mono } from 'next/font/google';
 import { ThemeProvider } from 'next-themes';
 import { Toaster } from 'react-hot-toast';
+import ServiceWorkerRegistration from '@/components/pwa/ServiceWorkerRegistration';
 import '@/styles/globals.css';
 
 // Fonts
@@ -38,6 +39,21 @@ export const metadata: Metadata = {
   keywords: ['fotografia', 'galeria', 'fotos profissionais', 'download seguro'],
   authors: [{ name: 'FotoPro' }],
   manifest: '/manifest.json',
+  icons: {
+    icon: [
+      { url: '/favicon.ico', sizes: '16x16 32x32 48x48', type: 'image/x-icon' },
+      { url: '/icons/icon-32x32.png',  sizes: '32x32',  type: 'image/png' },
+      { url: '/icons/icon-96x96.png',  sizes: '96x96',  type: 'image/png' },
+      { url: '/icons/icon-192x192.png', sizes: '192x192', type: 'image/png' },
+      { url: '/icons/icon-512x512.png', sizes: '512x512', type: 'image/png' },
+    ],
+    apple: [
+      { url: '/apple-touch-icon.png', sizes: '180x180', type: 'image/png' },
+    ],
+    other: [
+      { rel: 'mask-icon', url: '/icons/icon-512x512.png' },
+    ],
+  },
   appleWebApp: {
     capable: true,
     statusBarStyle: 'black-translucent',
@@ -66,8 +82,10 @@ export default function RootLayout({
       suppressHydrationWarning
       className={`${cormorant.variable} ${dmSans.variable} ${dmMono.variable}`}
     >
-      <body className="font-body antialiased selection:bg-gold-500/20 selection:text-gold-400"
-        style={{ backgroundColor: 'var(--color-bg)', color: 'var(--color-text-primary)' }}>
+      <body
+        className="font-body antialiased selection:bg-gold-500/20 selection:text-gold-400"
+        style={{ backgroundColor: 'var(--color-bg)', color: 'var(--color-text-primary)' }}
+      >
         <ThemeProvider attribute="class" defaultTheme="dark" enableSystem={false}>
           {children}
           <Toaster
@@ -91,6 +109,9 @@ export default function RootLayout({
             }}
           />
         </ThemeProvider>
+
+        {/* PWA — registra o Service Worker após o carregamento da página */}
+        <ServiceWorkerRegistration />
       </body>
     </html>
   );

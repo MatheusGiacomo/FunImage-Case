@@ -30,7 +30,6 @@ yarn-error.log*
 next-env.d.ts
 
 # PWA
-/public/sw.js
 /public/workbox-*.js
 /public/worker-*.js
 /public/sw.js.map
@@ -46,6 +45,3 @@ Thumbs.db
 
 # docker local data (opcional)
 .docker/
-
-teste
-README.md
