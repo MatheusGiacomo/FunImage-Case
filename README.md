@@ -18,6 +18,7 @@
 - [Pipeline de Processamento de Fotos](#pipeline-de-processamento-de-fotos)
 - [Modelo de Dados](#modelo-de-dados)
 - [Frontend](#frontend)
+- [PWA (Progressive Web App)](#pwa-progressive-web-app)
 - [Testes](#testes)
 - [CI/CD](#cicd)
 - [Convenções e Padrões de Código](#convenções-e-padrões-de-código)
@@ -143,13 +144,18 @@ FunImage/
 │   │   │   ├── pagination.py   # Paginação padrão
 │   │   │   ├── permissions.py  # IsAdmin, IsClient
 │   │   │   ├── renderers.py    # SuccessRenderer (envelope JSON uniforme)
-│   │   │   └── mongo.py        # Client MongoDB (pymongo)
+│   │   │   ├── mongo.py        # Client MongoDB (pymongo)
+│   │   │   └── management/
+│   │   │       └── commands/
+│   │   │           └── create_periodic_tasks.py  # Registra tarefas do Celery Beat
 │   │   ├── authentication/     # Login, logout, refresh token (JWT)
 │   │   ├── users/              # CRUD de usuários, roles (admin/client)
 │   │   ├── galleries/          # Galerias de fotos por cliente
+│   │   ├── dashboard/          # Estatísticas por role (admin e client)
+│   │   ├── notifications/      # Notificações in-app por usuário
 │   │   └── photos/
 │   │       ├── models.py       # Photo, PhotoFavorite, PhotoStatus
-│   │       ├── views.py        # Upload, listagem, download, favoritos
+│   │       ├── views.py        # Upload, listagem, download, favoritos, compra
 │   │       ├── tasks.py        # Pipeline Celery: watermark → EXIF → READY
 │   │       └── services/
 │   │           ├── watermark.py  # Aplicação de marca d'água (Pillow)
@@ -166,9 +172,16 @@ FunImage/
 │   ├── requirements.txt
 │   └── pytest.ini
 ├── frontend/
+│   ├── public/
+│   │   ├── manifest.json       # Web App Manifest (PWA)
+│   │   ├── sw.js               # Service Worker (cache + offline)
+│   │   └── icons/              # Ícones PWA (32, 96, 192, 512px)
 │   ├── src/
 │   │   ├── app/                # App Router do Next.js
 │   │   │   ├── auth/login/     # Tela de login
+│   │   │   ├── gallery/
+│   │   │   │   └── shared/[token]/  # Visualização pública de galeria compartilhada
+│   │   │   ├── offline/        # Página de fallback offline (PWA)
 │   │   │   └── dashboard/
 │   │   │       ├── clients/    # Gestão de clientes (admin)
 │   │   │       ├── galleries/  # Listagem de galerias
@@ -178,8 +191,9 @@ FunImage/
 │   │   │       └── settings/   # Configurações do perfil
 │   │   ├── components/
 │   │   │   ├── gallery/        # GalleryCard, PhotoGrid, PhotoLightbox, UploadDropzone
-│   │   │   ├── layout/         # Sidebar, TopBar
-│   │   │   └── ui/             # ConfirmDialog, ErrorBoundary, SkeletonCard
+│   │   │   ├── layout/         # Sidebar, TopBar, NotificationBell
+│   │   │   ├── pwa/            # ServiceWorkerRegistration
+│   │   │   └── ui/             # ConfirmDialog, ErrorBoundary, SkeletonCard, PurchaseDialog
 │   │   ├── lib/
 │   │   │   ├── api.ts          # Cliente Axios + interceptors JWT
 │   │   │   └── utils.ts        # Utilitários gerais
@@ -206,14 +220,24 @@ FunImage/
 - Geração automática de thumbnails
 - Extração e armazenamento de metadados EXIF no MongoDB
 - Reprocessamento automático de fotos com falha
+- Compartilhamento de galeria via share token (link público)
+- Revogação de compartilhamento (gera novo token e torna galeria privada)
+- Download de álbum completo (ZIP com fotos adquiridas)
 - Monitoramento das filas via Flower
+- Dashboard com estatísticas de fotos, galerias, downloads e favoritos
+- Notificações in-app quando clientes baixam fotos ou álbuns
 
 ### Para Clientes
 - Visualização das próprias galerias
 - Lightbox com navegação por teclado e swipe
 - Favoritar fotos
-- Download seguro de fotos originais via URL assinada (válida por 1 hora)
-- Acesso público a galerias via share token
+- Desbloqueio de fotos individuais para download via código de acesso
+- Desbloqueio de álbum inteiro para download via código de acesso
+- Download de foto original via URL assinada (válida por 1 hora)
+- Download de álbum completo em ZIP (apenas fotos adquiridas)
+- Acesso público a galerias via share token (sem autenticação)
+- Dashboard com estatísticas de fotos disponíveis, álbuns, favoritos e downloads
+- Notificações in-app quando o fotógrafo faz upload, processa fotos ou cria álbuns
 
 ### Plataforma
 - Autenticação JWT com refresh token rotativo e blacklist
@@ -224,6 +248,8 @@ FunImage/
 - Métricas Prometheus
 - Rastreamento de erros via Sentry
 - Request ID propagado em todos os logs
+- Notificações in-app com contador de não lidas em tempo real
+- Suporte a PWA: instalável, cache offline e página de fallback
 
 ---
 
@@ -360,9 +386,12 @@ npm run dev
 | `AWS_S3_ENDPOINT_URL` | `http://minio:9000` | Endpoint MinIO (dev) |
 | `WATERMARK_TEXT` | `© FotoPro` | Texto da marca d'água |
 | `WATERMARK_OPACITY` | `0.35` | Opacidade da marca d'água (0.0–1.0) |
+| `WATERMARK_FONT_SCALE` | `0.05` | Escala da fonte da marca d'água relativa à largura da imagem |
 | `MAX_UPLOAD_SIZE_MB` | `50` | Tamanho máximo de upload |
 | `DOWNLOAD_TOKEN_SECRET` | — | Secret para assinar URLs de download |
 | `DOWNLOAD_TOKEN_MAX_AGE` | `3600` | TTL das URLs assinadas (segundos) |
+| `PURCHASE_ACCESS_CODE` | `121212` | Código de acesso para desbloquear fotos/álbuns para download |
+| `FRONTEND_URL` | `http://localhost:3000` | URL base do frontend (usada para montar links de compartilhamento) |
 | `CORS_ALLOWED_ORIGINS` | `http://localhost:3000` | Origins permitidas pelo CORS |
 
 ### Frontend
@@ -389,20 +418,32 @@ POST   /api/users/                Cria usuário (admin)
 GET    /api/users/me/             Perfil do usuário autenticado
 PATCH  /api/users/me/             Atualiza perfil
 
-GET    /api/galleries/            Lista galerias do usuário autenticado
-POST   /api/galleries/            Cria galeria (admin)
-GET    /api/galleries/{id}/       Detalhe da galeria
-PATCH  /api/galleries/{id}/       Atualiza galeria (admin)
-DELETE /api/galleries/{id}/       Soft delete da galeria (admin)
-POST   /api/galleries/{id}/rotate-token/  Gera novo share token
+GET    /api/galleries/                          Lista galerias do usuário autenticado
+POST   /api/galleries/                          Cria galeria (admin)
+GET    /api/galleries/{id}/                     Detalhe da galeria
+PATCH  /api/galleries/{id}/                     Atualiza galeria (admin)
+DELETE /api/galleries/{id}/                     Soft delete da galeria (admin)
+POST   /api/galleries/{id}/share/               Torna galeria pública e retorna share URL
+POST   /api/galleries/{id}/revoke-share/        Revoga compartilhamento (torna privada + novo token)
+GET    /api/galleries/shared/{token}/           Acesso público à galeria via token (sem auth)
+GET    /api/galleries/{id}/download/            Download ZIP de todas as fotos adquiridas do álbum
+POST   /api/galleries/{id}/purchase/            Desbloqueia todas as fotos do álbum via código de acesso
 
 POST   /api/photos/upload/        Upload de foto(s) — multipart/form-data
-GET    /api/photos/               Lista fotos (filtros: gallery, status)
+GET    /api/photos/               Lista fotos (filtros: gallery, status, is_purchased)
 GET    /api/photos/{id}/          Detalhe da foto
 DELETE /api/photos/{id}/          Soft delete (admin)
 GET    /api/photos/{id}/download/ URL assinada para download do original
+POST   /api/photos/{id}/purchase/ Desbloqueia foto individual via código de acesso
 POST   /api/photos/{id}/favorite/ Favorita/desfavorita foto
 GET    /api/photos/favorites/     Lista fotos favoritadas
+
+GET    /api/dashboard/stats/      Estatísticas escopadas por role (admin ou client)
+
+GET    /api/notifications/                  Lista as últimas 50 notificações do usuário
+GET    /api/notifications/unread-count/     Contagem de notificações não lidas (para badge)
+POST   /api/notifications/{id}/read/        Marca uma notificação como lida
+POST   /api/notifications/read-all/         Marca todas as notificações como lidas
 
 GET    /api/health/               Health check da API
 GET    /metrics                   Métricas Prometheus
@@ -452,6 +493,28 @@ curl http://localhost:8000/api/galleries/ \
   -H "Authorization: Bearer <access_token>"
 ```
 
+### Sistema de Compra / Desbloqueio
+
+Para desbloquear fotos ou álbuns e liberar o download sem marca d'água, o cliente fornece o código de acesso configurado pela variável `PURCHASE_ACCESS_CODE`. O código padrão em desenvolvimento é `121212`.
+
+```bash
+# Desbloquear uma foto individual
+curl -X POST http://localhost:8000/api/photos/{id}/purchase/ \
+  -H "Authorization: Bearer <token>" \
+  -H "Content-Type: application/json" \
+  -d '{"code": "121212"}'
+
+# Desbloquear todas as fotos de um álbum
+curl -X POST http://localhost:8000/api/galleries/{id}/purchase/ \
+  -H "Authorization: Bearer <token>" \
+  -H "Content-Type: application/json" \
+  -d '{"code": "121212"}'
+
+# Baixar álbum em ZIP (após desbloqueio)
+curl -OJ http://localhost:8000/api/galleries/{id}/download/ \
+  -H "Authorization: Bearer <token>"
+```
+
 ---
 
 ## Pipeline de Processamento de Fotos
@@ -477,6 +540,7 @@ Após o upload, cada foto passa pelo seguinte pipeline Celery assíncrono:
       │  - Extrai tags EXIF do original
       │  - Persiste no MongoDB (fotopro_meta.photo_metadata)
       │  - Marca foto como READY
+      │  - Envia notificação in-app "photo_ready" ao cliente
       │
       ▼
 [Status: READY — disponível para o cliente]
@@ -523,6 +587,13 @@ photos
 photo_favorites
   user_id (FK users), photo_id (FK photos), created_at
   UNIQUE (user_id, photo_id)
+
+notifications
+  id (UUID PK), recipient_id (FK users),
+  type (photo_uploaded|photo_ready|album_created|photo_downloaded|album_downloaded),
+  title, message, is_read, read_at,
+  data (JSONField — contexto livre: gallery_id, photo_id, photo_count, actor_name…),
+  created_at, updated_at, deleted_at
 ```
 
 ### MongoDB (fotopro_meta)
@@ -555,15 +626,17 @@ Todos os models (exceto `User`) herdam de `BaseModel`, que combina:
 ### Estrutura de páginas (App Router)
 
 ```
-/auth/login                  Tela de login
-/dashboard                   Redirect para /dashboard/dashboard
-/dashboard/dashboard         Visão geral (métricas, últimas galerias)
-/dashboard/galleries         Listagem de galerias
-/dashboard/gallery/[id]      Galeria com PhotoGrid e Lightbox
-/dashboard/upload            Upload de fotos com drag-and-drop
-/dashboard/clients           Gestão de clientes (admin)
-/dashboard/favorites         Fotos favoritadas
-/dashboard/settings          Configurações do perfil
+/auth/login                        Tela de login
+/dashboard                         Redirect para /dashboard/dashboard
+/dashboard/dashboard               Visão geral (métricas, últimas galerias)
+/dashboard/galleries               Listagem de galerias
+/dashboard/gallery/[id]            Galeria com PhotoGrid e Lightbox
+/dashboard/upload                  Upload de fotos com drag-and-drop
+/dashboard/clients                 Gestão de clientes (admin)
+/dashboard/favorites               Fotos favoritadas
+/dashboard/settings                Configurações do perfil
+/gallery/shared/[token]            Visualização pública de galeria (sem login)
+/offline                           Página de fallback exibida quando sem conexão (PWA)
 ```
 
 ### Gerenciamento de estado (Zustand)
@@ -573,7 +646,7 @@ Todos os models (exceto `User`) herdam de `BaseModel`, que combina:
 | `auth.store` | Token JWT, usuário autenticado, login/logout |
 | `gallery.store` | Galerias, fotos, paginação, filtros |
 | `favorites.store` | IDs de fotos favoritadas, toggle |
-| `theme.store` | Tema claro/escuro (next-themes) |
+| `theme.store` | Tema claro/escuro persistido no localStorage |
 
 ### Componentes principais
 
@@ -582,7 +655,60 @@ Todos os models (exceto `User`) herdam de `BaseModel`, que combina:
 - **`PhotoLightbox`** — Visualizador fullscreen com Swiper, navegação por teclado e ações (favoritar, download)
 - **`GalleryCard`** — Card de galeria com cover photo, contagem e ações
 - **`Sidebar`** — Navegação responsiva com indicador de rota ativa
+- **`NotificationBell`** — Sino de notificações no TopBar com badge de não lidas, dropdown de histórico e ações de marcar como lida
+- **`PurchaseDialog`** — Modal de desbloqueio com campo de código de 6 dígitos para liberar download de foto ou álbum inteiro
 - **`ErrorBoundary`** — Captura erros de renderização React
+- **`ServiceWorkerRegistration`** — Registra o Service Worker silenciosamente após o carregamento da página
+
+---
+
+## PWA (Progressive Web App)
+
+O FunImage é instalável como aplicativo nativo em desktop e mobile.
+
+### Recursos
+
+- **Instalável** — Web App Manifest (`/public/manifest.json`) com ícones de 32px a 512px e modo `standalone`
+- **Cache offline** — Service Worker (`/public/sw.js`) com estratégias por tipo de conteúdo:
+
+| Tipo de recurso | Estratégia |
+|---|---|
+| App shell (JS/CSS/fontes) | Cache First |
+| Páginas Next.js | Network First com fallback de cache |
+| Imagens de fotos (MinIO/S3) | Cache First com limite de 200 entradas e TTL de 7 dias |
+| Chamadas de API | Network Only (dados sempre frescos) |
+| Download de ZIP | Network Only (nunca cacheado) |
+
+- **Página offline** — Ao acessar uma rota não cacheada sem conexão, o usuário é redirecionado para `/offline` com opção de recarregar
+- **Atualização automática** — O Service Worker detecta novas versões e aplica `skipWaiting()` no install
+
+### Configuração
+
+O registro do Service Worker é feito pelo componente `<ServiceWorkerRegistration />` incluído no layout raiz. Ele se registra somente após o evento `load` para não impactar o LCP.
+
+---
+
+## Sistema de Notificações In-App
+
+As notificações informam admins e clientes sobre eventos relevantes na plataforma.
+
+### Tipos de notificação
+
+| Tipo | Destinatário | Disparado quando |
+|---|---|---|
+| `photo_uploaded` | Cliente | Admin faz upload de fotos numa galeria do cliente |
+| `photo_ready` | Cliente | Fotos concluem o pipeline de processamento (READY) |
+| `album_created` | Cliente | Admin cria uma nova galeria para o cliente |
+| `photo_downloaded` | Admin | Cliente baixa uma foto original |
+| `album_downloaded` | Admin (todos) | Cliente baixa um álbum completo em ZIP |
+
+### Funcionamento
+
+- Todas as notificações são criadas via `notify()` em `apps/notifications/utils.py`, que captura silenciosamente eventuais falhas para não interromper a requisição principal
+- Admins recebem notificações de atividade de clientes via `notify_all_admins()`
+- O frontend consulta `/api/notifications/unread-count/` em polling leve para atualizar o badge no sino
+- A lista completa é carregada apenas quando o dropdown é aberto
+- O campo `data` (JSON livre) traz IDs de contexto (`gallery_id`, `photo_id`, `photo_count`, `actor_name`) para o frontend construir deep links
 
 ---
 
@@ -691,6 +817,11 @@ O pipeline GitHub Actions (`.github/workflows/ci.yml`) executa automaticamente e
 - Todas as tasks têm `bind=True`, `autoretry_for` e `retry_kwargs`
 - Tasks são idempotentes (verificam estado antes de processar)
 - Imports dentro da função para evitar problemas de inicialização circular
+
+**Notificações:**
+- Toda criação passa por `notify()` ou `notify_all_admins()` em `apps/notifications/utils.py`
+- Nunca importar o model `Notification` diretamente em views ou tasks — sempre usar as funções utilitárias
+- Falhas de notificação são logadas como `warning` e nunca propagadas
 
 **Settings:**
 - Separados por ambiente (`base.py`, `development.py`, `production.py`)
